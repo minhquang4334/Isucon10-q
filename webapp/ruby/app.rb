@@ -2,6 +2,8 @@ require 'sinatra'
 require 'mysql2'
 require 'mysql2-cs-bind'
 require 'csv'
+require 'logger'
+logger = Logger.new(STDOUT)
 
 class App < Sinatra::Base
   LIMIT = 20
@@ -117,7 +119,7 @@ class App < Sinatra::Base
   post '/deploy' do
     deploy_script = '../../deploy.sh'
     output = %x( #{deploy_script} )
-
+    logger.info("output")
 
     output.to_json
   end
