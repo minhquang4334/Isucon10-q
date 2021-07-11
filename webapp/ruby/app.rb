@@ -10,8 +10,8 @@ class App < Sinatra::Base
   LIMIT = 20
   NAZOTTE_LIMIT = 50
   redis = Redis.new host:"127.0.0.1", port: "6379"
-  CHAIR_SEARCH_CONDITION = redis.get(:CHAIR_SEARCH_CONDITION);
-  ESTATE_SEARCH_CONDITION = redis.get(:ESTATE_SEARCH_CONDITION)
+  CHAIR_SEARCH_CONDITION = JSON.parse(redis.get(:CHAIR_SEARCH_CONDITION))
+  ESTATE_SEARCH_CONDITION = JSON.parse(redis.get(:ESTATE_SEARCH_CONDITION))
   if !CHAIR_SEARCH_CONDITION
     CHAIR_SEARCH_CONDITION = JSON.parse(File.read('../fixture/chair_condition.json'), symbolize_names: true)
     redis.set(:CHAIR_SEARCH_CONDITION, CHAIR_SEARCH_CONDITION)
