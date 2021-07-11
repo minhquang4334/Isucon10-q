@@ -10,19 +10,20 @@ class App < Sinatra::Base
   LIMIT = 20
   NAZOTTE_LIMIT = 50
   redis = Redis.new host:"127.0.0.1", port: "6379"
-  CHAIR_SEARCH_CONDITION = redis.get(:CHAIR_SEARCH_CONDITION);
-  ESTATE_SEARCH_CONDITION = redis.get(:ESTATE_SEARCH_CONDITION)
-  if !CHAIR_SEARCH_CONDITION
-    CHAIR_SEARCH_CONDITION = File.read('../fixture/chair_condition.json')
-    redis.set(:CHAIR_SEARCH_CONDITION, CHAIR_SEARCH_CONDITION)
-  end
-  CHAIR_SEARCH_CONDITION = JSON.parse(CHAIR_SEARCH_CONDITION, symbolize_names: true)
 
-  if !ESTATE_SEARCH_CONDITION
-    ESTATE_SEARCH_CONDITION = File.read('../fixture/estate_condition.json')
-    redis.set(:ESTATE_SEARCH_CONDITION, ESTATE_SEARCH_CONDITION)
+  chair_cond = redis.get(:CHAIR_SEARCH_CONDITION);
+  if !chair_cond
+    chair_cond = File.read('../fixture/chair_condition.json')
+    redis.set(:CHAIR_SEARCH_CONDITION, chair_cond)
   end
-  ESTATE_SEARCH_CONDITION = JSON.parse(ESTATE_SEARCH_CONDITION, symbolize_names: true)
+  CHAIR_SEARCH_CONDITION = JSON.parse(chair_cond, symbolize_names: true)
+
+  estate_cond = redis.get(:ESTATE_SEARCH_CONDITION)
+  if !estate_cond
+    estate_cond = File.read('../fixture/estate_condition.json')
+    redis.set(:ESTATE_SEARCH_CONDITION, estate_cond)
+  end
+  ESTATE_SEARCH_CONDITION = JSON.parse(estate_cond, symbolize_names: true)
   configure :development do
     require 'sinatra/reloader'
     register Sinatra::Reloader
