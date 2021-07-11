@@ -44,7 +44,7 @@ CREATE TABLE isuumo.estate
     INDEX idx_rent (rent),
 
     -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L585
-    INDEX idx_popularity (popularity DESC),
+    INDEX idx_popularity_t (popularity ASC),
 
     -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L442
     -- SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC
