@@ -10,17 +10,20 @@ class App < Sinatra::Base
   LIMIT = 20
   NAZOTTE_LIMIT = 50
   redis = Redis.new host:"127.0.0.1", port: "6379"
-  CHAIR_SEARCH_CONDITION = redis.get(:CHAIR_SEARCH_CONDITION);
-  ESTATE_SEARCH_CONDITION = redis.get(:ESTATE_SEARCH_CONDITION)
-  if (!CHAIR_SEARCH_CONDITION) {
-    CHAIR_SEARCH_CONDITION = JSON.parse(File.read('../fixture/chair_condition.json'), symbolize_names: true)
-    redis.set(:CHAIR_SEARCH_CONDITION, CHAIR_SEARCH_CONDITION)
-  }
-  if (!ESTATE_SEARCH_CONDITION) {
-    ESTATE_SEARCH_CONDITION = JSON.parse(File.read('../fixture/estate_condition.json'), symbolize_names: true)
-    redis.set(:ESTATE_SEARCH_CONDITION, ESTATE_SEARCH_CONDITION)
-  }
 
+  chair_cond = redis.get(:chair_search_condition);
+  if !chair_cond
+    chair_cond = File.read('../fixture/chair_condition.json')
+    redis.set(:chair_search_condition, chair_cond)
+  end
+  chair_search_condition = JSON.parse(chair_cond, symbolize_names: true)
+
+  estate_cond = redis.get(:estate_search_condition)
+  if !estate_cond
+    estate_cond = File.read('../fixture/estate_condition.json')
+    redis.set(:estate_search_condition, estate_cond)
+  end
+  estate_search_condition = JSON.parse(estate_cond, symbolize_names: true)
   configure :development do
     require 'sinatra/reloader'
     register Sinatra::Reloader
@@ -145,7 +148,7 @@ class App < Sinatra::Base
     query_params = []
 
     if params[:priceRangeId] && params[:priceRangeId].size > 0
-      chair_price = CHAIR_SEARCH_CONDITION[:price][:ranges][params[:priceRangeId].to_i]
+      chair_price = chair_search_condition[:price][:ranges][params[:priceRangeId].to_i]
       unless chair_price
         logger.error "priceRangeID invalid: #{params[:priceRangeId]}"
         halt 400
@@ -163,7 +166,7 @@ class App < Sinatra::Base
     end
 
     if params[:heightRangeId] && params[:heightRangeId].size > 0
-      chair_height = CHAIR_SEARCH_CONDITION[:height][:ranges][params[:heightRangeId].to_i]
+      chair_height = chair_search_condition[:height][:ranges][params[:heightRangeId].to_i]
       unless chair_height
         logger.error "heightRangeId invalid: #{params[:heightRangeId]}"
         halt 400
@@ -181,7 +184,7 @@ class App < Sinatra::Base
     end
 
     if params[:widthRangeId] && params[:widthRangeId].size > 0
-      chair_width = CHAIR_SEARCH_CONDITION[:width][:ranges][params[:widthRangeId].to_i]
+      chair_width = chair_search_condition[:width][:ranges][params[:widthRangeId].to_i]
       unless chair_width
         logger.error "widthRangeId invalid: #{params[:widthRangeId]}"
         halt 400
@@ -199,7 +202,7 @@ class App < Sinatra::Base
     end
 
     if params[:depthRangeId] && params[:depthRangeId].size > 0
-      chair_depth = CHAIR_SEARCH_CONDITION[:depth][:ranges][params[:depthRangeId].to_i]
+      chair_depth = chair_search_condition[:depth][:ranges][params[:depthRangeId].to_i]
       unless chair_depth
         logger.error "depthRangeId invalid: #{params[:depthRangeId]}"
         halt 400
@@ -333,7 +336,7 @@ class App < Sinatra::Base
   end
 
   get '/api/chair/search/condition' do
-    CHAIR_SEARCH_CONDITION.to_json
+    chair_search_condition.to_json
   end
 
   get '/api/estate/low_priced' do
@@ -347,7 +350,7 @@ class App < Sinatra::Base
     query_params = []
 
     if params[:doorHeightRangeId] && params[:doorHeightRangeId].size > 0
-      door_height = ESTATE_SEARCH_CONDITION[:doorHeight][:ranges][params[:doorHeightRangeId].to_i]
+      door_height = estate_search_condition[:doorHeight][:ranges][params[:doorHeightRangeId].to_i]
       unless door_height
         logger.error "doorHeightRangeId invalid: #{params[:doorHeightRangeId]}"
         halt 400
@@ -365,7 +368,7 @@ class App < Sinatra::Base
     end
 
     if params[:doorWidthRangeId] && params[:doorWidthRangeId].size > 0
-      door_width = ESTATE_SEARCH_CONDITION[:doorWidth][:ranges][params[:doorWidthRangeId].to_i]
+      door_width = estate_search_condition[:doorWidth][:ranges][params[:doorWidthRangeId].to_i]
       unless door_width
         logger.error "doorWidthRangeId invalid: #{params[:doorWidthRangeId]}"
         halt 400
@@ -383,7 +386,7 @@ class App < Sinatra::Base
     end
 
     if params[:rentRangeId] && params[:rentRangeId].size > 0
-      rent = ESTATE_SEARCH_CONDITION[:rent][:ranges][params[:rentRangeId].to_i]
+      rent = estate_search_condition[:rent][:ranges][params[:rentRangeId].to_i]
       unless rent
         logger.error "rentRangeId invalid: #{params[:rentRangeId]}"
         halt 400
@@ -544,7 +547,7 @@ class App < Sinatra::Base
   end
 
   get '/api/estate/search/condition' do
-    ESTATE_SEARCH_CONDITION.to_json
+    estate_search_condition.to_json
   end
 
   get '/api/recommended_estate/:id' do
