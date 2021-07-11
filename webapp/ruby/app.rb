@@ -16,13 +16,13 @@ class App < Sinatra::Base
     CHAIR_SEARCH_CONDITION = File.read('../fixture/chair_condition.json')
     redis.set(:CHAIR_SEARCH_CONDITION, CHAIR_SEARCH_CONDITION)
   end
-  CHAIR_SEARCH_CONDITION = JSON.parse(CHAIR_SEARCH_CONDITION)
+  CHAIR_SEARCH_CONDITION = JSON.parse(CHAIR_SEARCH_CONDITION, symbolize_names: true)
 
   if !ESTATE_SEARCH_CONDITION
     ESTATE_SEARCH_CONDITION = File.read('../fixture/estate_condition.json')
     redis.set(:ESTATE_SEARCH_CONDITION, ESTATE_SEARCH_CONDITION)
   end
-  ESTATE_SEARCH_CONDITION = JSON.parse(ESTATE_SEARCH_CONDITION)
+  ESTATE_SEARCH_CONDITION = JSON.parse(ESTATE_SEARCH_CONDITION, symbolize_names: true)
   configure :development do
     require 'sinatra/reloader'
     register Sinatra::Reloader
