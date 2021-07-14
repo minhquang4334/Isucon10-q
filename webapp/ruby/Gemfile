@@ -9,3 +9,4 @@ gem "mysql2-cs-bind"
 gem "unicorn"
 gem "redis"
 gem "hiredis"
+gem 'mongoid'
