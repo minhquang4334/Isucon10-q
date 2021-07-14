@@ -5,6 +5,7 @@ require 'mysql2-cs-bind'
 require 'csv'
 require 'logger'
 require 'redis'
+require 'json'
 logger = Logger.new(STDOUT)
 Mongoid.load!(File.join(File.dirname(__FILE__), 'config', 'mongoid.yml'))
 
@@ -123,8 +124,12 @@ class App < Sinatra::Base
   end
 
   post '/initialize' do
-    system("mongoimport --host 54.178.148.87 -u isucon -p isucon --db isuumo --collection estate --drop --jsonArray --file ../mongo/estate.json")
-    system("mongoimport --host 54.178.148.87 -u isucon -p isucon --db isuumo --collection chair --drop --jsonArray --file ../mongo/chair.json") 
+    chair_file = File.read('../mongo/chair.json')
+    estate_file = File.read('../mongo/estate.json')
+    chair_hash = JSON.parse(chair_file)
+    estate_hash = JSON.parse(estate_file)
+    client[:chair].insert_many(chair_hash)
+    client[:estate].insert_many(estate_hash)
 
     { language: 'ruby' }.to_json
   end
