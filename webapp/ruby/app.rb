@@ -1,47 +1,12 @@
 require 'sinatra'
 require 'mysql2'
-require 'mongoid'
+require 'mongo'
 require 'mysql2-cs-bind'
 require 'csv'
 require 'logger'
 require 'redis'
 logger = Logger.new(STDOUT)
 Mongoid.load!(File.join(File.dirname(__FILE__), 'config', 'mongoid.yml'))
-
-class Chair
-  include Mongoid::Document
-
-  field :id, type: Integer
-  field :name, type: String
-  field :description, type: String
-  field :thumbnail, type: String
-  price, type: Integer
-  height, type: Integer
-  width, type: Integer
-  depth, type: Integer
-  color, type: String
-  features, type: String
-  kind, type: String
-  popularity, type: Integer
-  stock, type: Integer
-end
-
-class Estate
-  include Mongoid::Document
-
-  field :id, type: Integer
-  field :name, type: String
-  field :description, type: String
-  field :thumbnail, type: String
-  field :address, type: String
-  field :latitude, type: double
-  field :longitude, type: double
-  field :rent, type: Integer
-  field :door_height, type: Integer
-  field :door_width, type: Integer
-  field :features, type: String
-  field :popularity, type: Integer
-end
 
 class App < Sinatra::Base
   LIMIT = 20
@@ -72,6 +37,11 @@ class App < Sinatra::Base
 
   set :add_charset, ['application/json']
 
+  client = Mongo::Client.new([ '54.178.148.87:27017' ],
+    user: 'isucon',
+    password: 'isucon',
+    database: 'isuumo' )
+  
   helpers do
     def db_info
       {
@@ -153,6 +123,13 @@ class App < Sinatra::Base
   end
 
   post '/initialize' do
+    chair_collection = client[:chair]
+    chair_collection.drop
+    estate_collection = client[:estate]
+    estate_collection.drop
+    system("mongoimport --host 54.178.148.87 --user isucon --password isucon --db isuumo --collection estate --drop --jsonArray --file ../mongodb/estate.json")
+    system("mongoimport --host 54.178.148.87 --user isucon --password isucon --db isuumo --collection chair --drop --jsonArray --file ../mongodb/chair.json") 
+
     sql_dir = Pathname.new('../mysql/db')
     %w[0_Schema.sql 1_DummyEstateData.sql 2_DummyChairData.sql].each do |sql|
       sql_path = sql_dir.join(sql)

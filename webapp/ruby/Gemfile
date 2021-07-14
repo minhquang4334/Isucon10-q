@@ -10,3 +10,4 @@ gem "unicorn"
 gem "redis"
 gem "hiredis"
 gem 'mongoid'
+gem 'mongo'
