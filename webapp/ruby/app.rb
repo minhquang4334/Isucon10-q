@@ -124,20 +124,23 @@ class App < Sinatra::Base
   end
 
   post '/initialize' do
-    chair_file = File.open('../mongo/chair.json')
-    estate_file = File.open('../mongo/estate.json')
-    chunk_size = 1000
-    chair_hash = Json::Streamer.parser(file_io: chair_file, chunk_size: chunk_size)
-    estate_hash = Json::Streamer.parser(file_io: estate_file, chunk_size: chunk_size)
-    chair_hash.get(nesting_level:1) do |object|
-      client[:chair].insert_one(object)
-    end
-    estate_hash.get(nesting_level:1) do |object|
-      client[:estate].insert_one(object)
-    end
-end
+#    chair_file = File.open('../mongo/chair.json')
+#    estate_file = File.open('../mongo/estate.json')
+#    chunk_size = 1000
+#    chair_hash = Json::Streamer.parser(file_io: chair_file, chunk_size: chunk_size)
+#    estate_hash = Json::Streamer.parser(file_io: estate_file, chunk_size: chunk_size)
+#    chair_hash.get(nesting_level:1) do |object|
+#      client[:chair].insert_one(object)
+#    end
+#    estate_hash.get(nesting_level:1) do |object|
+#      client[:estate].insert_one(object)
+#    end
+     chair_pid = spawn("mongoimport --host 54.178.148.87 -u isucon -p isucon --db isuumo --collection chair --drop --jsonArray --file ../mongo/chair.json")
+     Process.wait(chair_pid)
+     es_pid = spawn("mongoimport --host 54.178.148.87 -u isucon -p isucon --db isuumo --collection estate --drop --jsonArray --file ../mongo/estate.json")    
+     Process.wait(es_pid)
 
-    { language: 'ruby' }.to_json
+     { language: 'ruby' }.to_json
   end
 
   post '/deploy' do

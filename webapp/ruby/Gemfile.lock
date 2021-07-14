@@ -2,8 +2,14 @@ GEM
   remote: https://rubygems.org/
   specs:
     backports (3.18.2)
+    bson (4.12.1)
     hiredis (0.6.3)
+    json-stream (0.2.1)
+    json-streamer (2.1.0)
+      json-stream
     kgio (2.11.3)
+    mongo (2.14.0)
+      bson (>= 4.8.2, < 5.0.0)
     multi_json (1.15.0)
     mustermann (1.1.1)
       ruby2_keywords (~> 0.0.1)
@@ -38,6 +44,8 @@ PLATFORMS
 
 DEPENDENCIES
   hiredis
+  json-streamer
+  mongo
   mysql2
   mysql2-cs-bind
   redis
