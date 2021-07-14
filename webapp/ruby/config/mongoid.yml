@@ -1,0 +1,10 @@
+development:
+  clients:
+    default:
+      database: isuumo
+      hosts:
+        - 54.178.148.87:27017
+      options:
+        server_selection_timeout: 1
+        user: isucon
+        password: isucon
