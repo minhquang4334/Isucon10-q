@@ -123,22 +123,8 @@ class App < Sinatra::Base
   end
 
   post '/initialize' do
-    chair_collection = client[:chair]
-    chair_collection.drop
-    estate_collection = client[:estate]
-    estate_collection.drop
-    system("mongoimport --host 54.178.148.87 --user isucon --password isucon --db isuumo --collection estate --drop --jsonArray --file ../mongodb/estate.json")
-    system("mongoimport --host 54.178.148.87 --user isucon --password isucon --db isuumo --collection chair --drop --jsonArray --file ../mongodb/chair.json") 
-
-    sql_dir = Pathname.new('../mysql/db')
-    %w[0_Schema.sql 1_DummyEstateData.sql 2_DummyChairData.sql].each do |sql|
-      sql_path = sql_dir.join(sql)
-      cmd = ['mysql', '-h', db_info[:host], '-u', db_info[:username], "-p#{db_info[:password]}", '-P', db_info[:port], db_info[:database]]
-      IO.popen(cmd, 'w') do |io|
-        io.puts File.read(sql_path)
-        io.close
-      end
-    end
+    system("mongoimport --host 54.178.148.87 -u isucon -p isucon --db isuumo --collection estate --drop --jsonArray --file ../mongo/estate.json")
+    system("mongoimport --host 54.178.148.87 -u isucon -p isucon --db isuumo --collection chair --drop --jsonArray --file ../mongo/chair.json") 
 
     { language: 'ruby' }.to_json
   end
