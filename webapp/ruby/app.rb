@@ -1,10 +1,47 @@
 require 'sinatra'
 require 'mysql2'
+require 'mongoid'
 require 'mysql2-cs-bind'
 require 'csv'
 require 'logger'
 require 'redis'
 logger = Logger.new(STDOUT)
+Mongoid.load!(File.join(File.dirname(__FILE__), 'config', 'mongoid.yml'))
+
+class Chair
+  include Mongoid::Document
+
+  field :id, type: int
+  field :name, type: String
+  field :description, type: String
+  field :thumbnail, type: String
+  price, type: int
+  height, type: int
+  width, type: int
+  depth, type: int
+  color, type: String
+  features, type: String
+  kind, type: String
+  popularity, type: int
+  stock, type: int
+end
+
+class Estate
+  include Mongoid::Document
+
+  field :id, type: int
+  field :name, type: String
+  field :description, type: String
+  field :thumbnail, type: String
+  field :address, type: String
+  field :latitude, type: double
+  field :longitude, type: double
+  field :rent, type: int
+  field :door_height, type: int
+  field :door_width, type: int
+  field :features, type: String
+  field :popularity, type: int
+end
 
 class App < Sinatra::Base
   LIMIT = 20
