@@ -7,7 +7,6 @@ require 'logger'
 require 'redis'
 require 'json'
 logger = Logger.new(STDOUT)
-Mongoid.load!(File.join(File.dirname(__FILE__), 'config', 'mongoid.yml'))
 
 class App < Sinatra::Base
   LIMIT = 20
@@ -128,8 +127,16 @@ class App < Sinatra::Base
     estate_file = File.read('../mongo/estate.json')
     chair_hash = JSON.parse(chair_file)
     estate_hash = JSON.parse(estate_file)
-    client[:chair].insert_many(chair_hash)
-    client[:estate].insert_many(estate_hash)
+    bulk_chair = client[:chair].initialize_ordered_bulk_op
+    chair_hash.each do |hash|
+      bulk_chair.insert(hash)
+    end
+    bulk_chair.execute
+    bulk_estate = client[:chair].initialize_ordered_bulk_op
+    estate_hash.each do |hash|
+      bulk_estate.insert(hash)
+    end
+    bulk_estate.execute
 
     { language: 'ruby' }.to_json
   end
