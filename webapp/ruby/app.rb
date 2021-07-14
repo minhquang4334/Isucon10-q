@@ -5,7 +5,8 @@ require 'mysql2-cs-bind'
 require 'csv'
 require 'logger'
 require 'redis'
-require 'json'
+require 'json/streamer'
+
 logger = Logger.new(STDOUT)
 
 class App < Sinatra::Base
@@ -123,20 +124,18 @@ class App < Sinatra::Base
   end
 
   post '/initialize' do
-    chair_file = File.read('../mongo/chair.json')
-    estate_file = File.read('../mongo/estate.json')
-    chair_hash = JSON.parse(chair_file)
-    estate_hash = JSON.parse(estate_file)
-    bulk_chair = client[:chair].initialize_ordered_bulk_op
-    chair_hash.each do |hash|
-      bulk_chair.insert(hash)
+    chair_file = File.open('../mongo/chair.json')
+    estate_file = File.open('../mongo/estate.json')
+    chunk_size = 1000
+    chair_hash = Json::Streamer.parser(file_io: chair_file, chunk_size: chunk_size)
+    estate_hash = Json::Streamer.parser(file_io: estate_file, chunk_size: chunk_size)
+    chair_hash.get(nesting_level:1) do |object|
+      client[:chair].insert_one(object)
     end
-    bulk_chair.execute
-    bulk_estate = client[:chair].initialize_ordered_bulk_op
-    estate_hash.each do |hash|
-      bulk_estate.insert(hash)
+    estate_hash.get(nesting_level:1) do |object|
+      client[:estate].insert_one(object)
     end
-    bulk_estate.execute
+end
 
     { language: 'ruby' }.to_json
   end

@@ -10,4 +10,4 @@ gem "unicorn"
 gem "redis"
 gem "hiredis"
 gem 'mongo'
-gem 'json'
+gem 'json-streamer'
