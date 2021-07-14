@@ -152,9 +152,10 @@ class App < Sinatra::Base
   end
 
   get '/api/chair/low_priced' do
-    sql = "SELECT * FROM chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT #{LIMIT}" # XXX:
-    chairs = db.query(sql).to_a
-    { chairs: chairs }.to_json
+ #   sql = "SELECT * FROM chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT #{LIMIT}" # XXX:
+ #   chairs = db.query(sql).to_a
+    chairs = client[:chair].find({:stock => {'$gt' => 0}}).sort({:price => 1, :id => 1}).limit(LIMIT)
+    { chairs: chairs.to_a }.to_json
   end
 
   get '/api/chair/search' do
@@ -354,9 +355,11 @@ class App < Sinatra::Base
   end
 
   get '/api/estate/low_priced' do
-    sql = "SELECT * FROM estate ORDER BY rent ASC, id ASC LIMIT #{LIMIT}" # XXX:
-    estates = db.xquery(sql).to_a
-    { estates: estates.map { |e| camelize_keys_for_estate(e) } }.to_json
+#    sql = "SELECT * FROM estate ORDER BY rent ASC, id ASC LIMIT #{LIMIT}" # XXX:
+#    estates = db.xquery(sql).to_a
+     estates = client[:estate].find().sort({:rent => 1, :id => 1}).limit(LIMIT)
+
+     { estates: estates.to_a.map { |e| camelize_keys_for_estate(e) } }.to_json
   end
 
   get '/api/estate/search' do
