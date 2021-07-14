@@ -11,36 +11,36 @@ Mongoid.load!(File.join(File.dirname(__FILE__), 'config', 'mongoid.yml'))
 class Chair
   include Mongoid::Document
 
-  field :id, type: int
+  field :id, type: Integer
   field :name, type: String
   field :description, type: String
   field :thumbnail, type: String
-  price, type: int
-  height, type: int
-  width, type: int
-  depth, type: int
+  price, type: Integer
+  height, type: Integer
+  width, type: Integer
+  depth, type: Integer
   color, type: String
   features, type: String
   kind, type: String
-  popularity, type: int
-  stock, type: int
+  popularity, type: Integer
+  stock, type: Integer
 end
 
 class Estate
   include Mongoid::Document
 
-  field :id, type: int
+  field :id, type: Integer
   field :name, type: String
   field :description, type: String
   field :thumbnail, type: String
   field :address, type: String
   field :latitude, type: double
   field :longitude, type: double
-  field :rent, type: int
-  field :door_height, type: int
-  field :door_width, type: int
+  field :rent, type: Integer
+  field :door_height, type: Integer
+  field :door_width, type: Integer
   field :features, type: String
-  field :popularity, type: int
+  field :popularity, type: Integer
 end
 
 class App < Sinatra::Base
