@@ -5,7 +5,7 @@ require 'logger'
 require 'redis'
 require 'json/streamer'
 
-logger = Logger.new(STDOUT)
+logger = Logger.new('app.log')
 
 class App < Sinatra::Base
   LIMIT = 20
@@ -101,7 +101,7 @@ class App < Sinatra::Base
         price[:price][:$lt] = chair_price[:max]
       end
 
-      if price[:price].present?
+      if !price[:price].empty?
         search_queries << price
       end
     end
@@ -122,7 +122,7 @@ class App < Sinatra::Base
         height[:height][:$lt] = chair_height[:max]
       end
 
-      if height[:height].present?
+      if !height[:height].empty?
         search_queries << height
       end
     end
@@ -143,7 +143,7 @@ class App < Sinatra::Base
         width[:width][:$lt] = chair_width[:max]
       end
 
-      if width[:width].present?
+      if !width[:width].empty?
         search_queries << width
       end
     end
@@ -164,7 +164,7 @@ class App < Sinatra::Base
         depth[:depth][:$lt] = chair_depth[:max]
       end
 
-      if depth[:depth].present?
+      if !depth[:depth].empty?
         search_queries << depth
       end
     end
@@ -335,7 +335,7 @@ class App < Sinatra::Base
         door_height[:door_height][:$lt] = door_height[:max]
       end
 
-      if door_height[:door_height].present?
+      if !door_height[:door_height].empty?
         search_queries << door_height
       end
     end
@@ -356,7 +356,7 @@ class App < Sinatra::Base
         door_width[:door_width][:$lt] = door_width[:max]
       end
 
-      if door_width[:door_width].present?
+      if !door_width[:door_width].empty?
         search_queries << door_width
       end
     end
@@ -377,7 +377,7 @@ class App < Sinatra::Base
         rent[:rent][:$lt] = rent[:max]
       end
 
-      if rent[:rent].present?
+      if !rent[:rent].empty?
         search_queries << rent
       end
     end
@@ -470,7 +470,7 @@ class App < Sinatra::Base
           }
         }
       }).first
-      if check.present?
+      if !check.empty?
         estates_in_polygon << estate
       end
     end
