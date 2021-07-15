@@ -62,10 +62,6 @@ class App < Sinatra::Base
   end
 
   post '/initialize' do
-    # chair_pid = spawn("mongoimport --host 172.31.40.59 -u isucon -p isucon --db isuumo --collection chair --drop --jsonArray --file ../mongo/chair.json")
-    # Process.wait(chair_pid)
-    # es_pid = spawn("mongoimport --host 172.31.40.59 -u isucon -p isucon --db isuumo --collection estate --drop --jsonArray --file ../mongo/estate.json")    
-    # Process.wait(es_pid)
     system("mongoimport --host 172.31.40.59 -u isucon -p isucon --db isuumo --collection chair --drop --jsonArray --file ../mongo/chair.json")
     system("mongoimport --host 172.31.40.59 -u isucon -p isucon --db isuumo --collection estate --drop --jsonArray --file ../mongo/estate.json")
     client[:estate].indexes.create_one({ 'coor' => '2dsphere' })
@@ -246,6 +242,7 @@ class App < Sinatra::Base
 
     session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
       CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true) do |row|
+        row = row.map(&:to_s)
         object = {
           :id => row[0].to_s,
           :name => row[1].to_s,
@@ -464,6 +461,7 @@ class App < Sinatra::Base
 
     session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
       CSV.parse(params[:estates][:tempfile].read, skip_blanks: true) do |row|
+        row = row.map(&:to_s)
         object = {
           :id => row[0].to_s,
           :name => row[1].to_s,
