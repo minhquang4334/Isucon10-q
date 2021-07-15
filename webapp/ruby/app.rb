@@ -20,17 +20,16 @@ class App < Sinatra::Base
   end
 
   set :add_charset, ['application/json']
-  
-  client = Mongo::Client.new([ '172.31.40.59:27017' ],
-    user: 'isucon',
-    password: 'isucon',
-    database: 'isuumo'
-    # write_concern: {w: :majority, wtimeout: 1000}
-  )
-  client[:estate].indexes.create_one({ 'coor' => '2dsphere' })
-  # session = client.start_session
 
   helpers do
+    def client
+      client = Thread.current[:db] ||= Mongo::Client.new([ '172.31.40.59:27017' ],
+        user: 'isucon',
+        password: 'isucon',
+        database: 'isuumo'
+      )
+    end
+
     def camelize_keys_for_estate(estate_hash)
       estate_hash.tap do |e|
         e[:doorHeight] = e.delete(:door_height)
@@ -228,26 +227,24 @@ class App < Sinatra::Base
       halt 400
     end
 
-    # session.with_transaction(write_concern: {w: :majority}) do
-      CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
-        object = {
-          :id => row[0].to_s,
-          :name => row[1].to_s,
-          :description => row[2].to_s,
-          :thumbnail => row[3].to_s,
-          :price => row[4].to_s,
-          :height => row[5].to_s,
-          :width => row[6].to_s,
-          :depth => row[7].to_s,
-          :color => row[8].to_s,
-          :features => row[9].to_s,
-          :kind => row[10].to_s,
-          :popularity => row[11].to_s,
-          :stock => row[12].to_s
-        }
-        client[:chair].insert_one(object)
-      end
-    # end
+    CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
+      object = {
+        :id => row[0].to_s,
+        :name => row[1].to_s,
+        :description => row[2].to_s,
+        :thumbnail => row[3].to_s,
+        :price => row[4].to_s,
+        :height => row[5].to_s,
+        :width => row[6].to_s,
+        :depth => row[7].to_s,
+        :color => row[8].to_s,
+        :features => row[9].to_s,
+        :kind => row[10].to_s,
+        :popularity => row[11].to_s,
+        :stock => row[12].to_s
+      }
+      client[:chair].insert_one(object)
+    end
 
     status 201
   end
