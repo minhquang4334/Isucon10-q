@@ -5,7 +5,7 @@ require 'logger'
 require 'redis'
 require 'json/streamer'
 
-logger = Logger.new('app.log')
+logger = Logger.new(STDOUT)
 
 class App < Sinatra::Base
   LIMIT = 20
@@ -42,6 +42,7 @@ class App < Sinatra::Base
     database: 'isuumo',
     write_concern: {w: :majority, wtimeout: 1000}
   )
+  client[:estate].indexes.create_one({ 'coor' => '2dsphere' })
   session = client.start_session
 
   helpers do
@@ -416,7 +417,7 @@ class App < Sinatra::Base
       halt 400
     end
 
-    cor_array = coordinates.map{ |c| c.values_at("latitude", "longitude") }
+    cor_array = coordinates.map{ |c| c.values_at(:longitude, :latitude) }
     estates_in_polygon = client[:estate].find({
       :coor => {
         :$geoWithin => {
