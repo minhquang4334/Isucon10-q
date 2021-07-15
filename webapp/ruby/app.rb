@@ -1,7 +1,5 @@
 require 'sinatra'
-require 'mysql2'
 require 'mongo'
-require 'mysql2-cs-bind'
 require 'csv'
 require 'logger'
 require 'redis'
@@ -314,11 +312,23 @@ class App < Sinatra::Base
       halt 400
     end
 
-    transaction('post_api_chair') do
-      CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true) do |row|
-        sql = 'INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        db.xquery(sql, *row.map(&:to_s))
-      end
+    CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true) do |row|
+      object = {
+        :id => row[0].to_s,
+        :name => row[1].to_s,
+        :description => row[2].to_s,
+        :thumbnail => row[3].to_s,
+        :price => row[4].to_s,
+        :height => row[5].to_s,
+        :width => row[6].to_s,
+        :depth => row[7].to_s,
+        :color => row[8].to_s,
+        :features => row[9].to_s,
+        :kind => row[10].to_s,
+        :popularity => row[11].to_s,
+        :stock => row[12].to_s
+      }
+      client[:chair].insert_one(object)
     end
 
     status 201
@@ -338,14 +348,14 @@ class App < Sinatra::Base
         halt 400
       end
 
-    transaction('post_api_chair_buy') do |tx_name|
-      chair = db.xquery('SELECT * FROM chair WHERE id = ? AND stock > 0 FOR UPDATE', id).first
-      unless chair
-        rollback_transaction(tx_name) if in_transaction?(tx_name)
-        halt 404
-      end
-      db.xquery('UPDATE chair SET stock = stock - 1 WHERE id = ?', id)
-    end
+    client[:chair].findOneAndUpdate(
+      {
+        :$and => [{:id => id}, {:stock => {:$gt => 0}}]
+      },
+      {
+        :$inc => {:stock: -1}
+      }
+    )
 
     status 200
   end
@@ -551,11 +561,22 @@ class App < Sinatra::Base
       halt 400
     end
 
-    transaction('post_api_estate') do
-      CSV.parse(params[:estates][:tempfile].read, skip_blanks: true) do |row|
-        sql = 'INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        db.xquery(sql, *row.map(&:to_s))
-      end
+    CSV.parse(params[:estates][:tempfile].read, skip_blanks: true) do |row|
+      object = {
+        :id => row[0].to_s,
+        :name => row[1].to_s,
+        :description => row[2].to_s,
+        :thumbnail => row[3].to_s,
+        :address => row[4].to_s,
+        :latitude => row[5].to_s,
+        :longitude => row[6].to_s,
+        :rent => row[7].to_s,
+        :door_height => row[8].to_s,
+        :door_width => row[9].to_s,
+        :features => row[10].to_s,
+        :popularity => row[11].to_s
+      }
+      client[:chair].insert_one(object)
     end
 
     status 201
@@ -575,7 +596,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estate = db.xquery('SELECT * FROM estate WHERE id = ?', id).first
+    estate = client[:estate].findOne({:id => id}).first
     unless estate
       logger.error "Requested id's estate not found: #{id}"
       halt 404
