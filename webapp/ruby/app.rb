@@ -282,7 +282,7 @@ class App < Sinatra::Base
         halt 400
       end
     chairs = client[:chair].find({:$and => search_queries}).limit(per_page).skip(per_page * page)
-    { count: chairs.count(), chairs: chairs }.to_json
+    { count: chairs.count(), chairs: chairs.to_a }.to_json
   end
 
   get '/api/chair/:id' do
@@ -294,7 +294,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    chair = client[:chair].findOne({:id => id})
+    chair = client[:chair].findOne({:id => id}).first
     unless chair
       logger.info "Requested id's chair not found: #{id}"
       halt 404
@@ -457,7 +457,7 @@ class App < Sinatra::Base
       end
 
     estates = client[:estate].find({:$and => search_queries}).limit(per_page).skip(per_page * page)
-    { count: chairs.count(), chairs: chairs }.to_json
+    { count: estates.count(), estates: estates.to_a }.to_json
   end
 
   post '/api/estate/nazotte' do
@@ -473,6 +473,14 @@ class App < Sinatra::Base
       halt 400
     end
 
+    cor_array = coordinates.map{ |c| c.values_at(:latitude, :longitude) }
+
+    client[:gel].insert_one({
+      "polygons" => {
+        :type => "Polygon",
+        :coordinates => cor_array
+      }
+    })
     longitudes = coordinates.map { |c| c[:longitude] }
     latitudes = coordinates.map { |c| c[:latitude] }
     bounding_box = {
@@ -486,17 +494,29 @@ class App < Sinatra::Base
       },
     }
 
-    sql = 'SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC'
-    estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
-
+    estates = client[:estate].find({
+      :$and => [
+        {:latitude => {:$lte => bounding_box[:bottom_right][:latitude]}},
+        {:latitude => {:$gte => bounding_box[:top_left][:latitude]}},
+        {:longitude => {:$lte => bounding_box[:bottom_right][:longitude]}},
+        {:longitude => {:$gte => bounding_box[:top_left][:longitude]}}
+      ]
+    })
+    
     estates_in_polygon = []
     estates.each do |estate|
-      point = "'POINT(%f %f)'" % estate.values_at(:latitude, :longitude)
-      coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
-      sql = 'SELECT * FROM estate WHERE id = ? AND ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s))' % [coordinates_to_text, point]
-      e = db.xquery(sql, estate[:id]).first
-      if e
-        estates_in_polygon << e
+      check = client[:gel].findOne({
+        :polygons => {
+          :$geoIntersects => {
+            :$geometry => {
+              :type => "Point",
+              :coordinates => estate.values_at(:latitude, :longitude)
+            }
+          }
+        }
+      }).first
+      if check.present?
+        estates_in_polygon << estate
       end
     end
 
@@ -516,7 +536,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estate = client[:estate].findOne({:id => id})
+    estate = client[:estate].findOne({:id => id}).first
     unless estate
       logger.info "Requested id's estate not found: #{id}"
       halt 404
@@ -577,7 +597,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    chair = client[:estate].findOne({:id => id})
+    chair = client[:estate].findOne({:id => id}).first
     unless chair
       logger.error "Requested id's chair not found: #{id}"
       halt 404
@@ -628,6 +648,6 @@ class App < Sinatra::Base
       ]
     }
     estates = client[:estate].find(query).sort({:popularity => -1, :id => 1}).limit(LIMIT)
-    { estates: estates.map { |e| camelize_keys_for_estate(e) } }.to_json
+    { estates: estates.to_a.map { |e| camelize_keys_for_estate(e) } }.to_json
   end
 end
