@@ -257,7 +257,7 @@ class App < Sinatra::Base
           :popularity => row[11].to_s,
           :stock => row[12].to_s
         }
-        client[:chair].insert_one(object, session: my_session)
+        client[:chair].insert_one(object)
       end
     end
 
@@ -285,8 +285,7 @@ class App < Sinatra::Base
         },
         {
           :$inc => {:stock => -1}
-        },
-        session: my_session
+        }
       )
     end
 
