@@ -475,9 +475,9 @@ class App < Sinatra::Base
     points = estates.map { |estate| "'POINT(%f %f)'" % estate.values_at(:latitude, :longitude) }
     coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
     
-    sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText("POINT(latitude longitude)")) as is_geom_contain FROM estate WHERE id IN ? LIMIT ?' % [coordinates_to_text]
+    sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText("POINT(latitude longitude)")) as is_geom_contain FROM estate WHERE id IN %s LIMIT %i' % [coordinates_to_text, "(#{estate_ids})", NAZOTTE_LIMIT]
     
-    estates_in_polygon = db.xquery(sql, "(#{estate_ids})", NAZOTTE_LIMIT)
+    estates_in_polygon = db.xquery(sql)
 
     nazotte_estates = estates_in_polygon.select { |e| e.is_geom_contain }
     {
