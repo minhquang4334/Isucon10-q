@@ -227,6 +227,7 @@ class App < Sinatra::Base
       halt 400
     end
 
+    chairs = []
     CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
       object = {
         :id => row[0].to_s,
@@ -243,8 +244,10 @@ class App < Sinatra::Base
         :popularity => row[11].to_s,
         :stock => row[12].to_s
       }
-      client[:chair].insert_one(object)
+
+      chairs << object
     end
+    client[:chair].insert_many(chairs)
 
     status 201
   end
@@ -448,25 +451,26 @@ class App < Sinatra::Base
       halt 400
     end
 
-    # session.with_transaction(write_concern: {w: :majority}) do
-      CSV.parse(params[:estates][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
-        object = {
-          :id => row[0].to_s,
-          :name => row[1].to_s,
-          :description => row[2].to_s,
-          :thumbnail => row[3].to_s,
-          :address => row[4].to_s,
-          :latitude => row[5].to_s,
-          :longitude => row[6].to_s,
-          :rent => row[7].to_s,
-          :door_height => row[8].to_s,
-          :door_width => row[9].to_s,
-          :features => row[10].to_s,
-          :popularity => row[11].to_s
-        }
-        client[:estate].insert_one(object)
-      end
-    # end
+    estates = []
+    CSV.parse(params[:estates][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
+      object = {
+        :id => row[0].to_s,
+        :name => row[1].to_s,
+        :description => row[2].to_s,
+        :thumbnail => row[3].to_s,
+        :address => row[4].to_s,
+        :latitude => row[5].to_s,
+        :longitude => row[6].to_s,
+        :rent => row[7].to_s,
+        :door_height => row[8].to_s,
+        :door_width => row[9].to_s,
+        :features => row[10].to_s,
+        :popularity => row[11].to_s
+      }
+
+      estates << object
+    end
+    client[:estate].insert_many(estates)
 
     status 201
   end
