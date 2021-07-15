@@ -240,9 +240,8 @@ class App < Sinatra::Base
       halt 400
     end
 
-    data = params[:chairs][:tempfile].force_encoding(Encoding::UTF_8)
     session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
-      CSV.parse(data.read, skip_blanks: true) do |row|
+      CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true, encoding: 'windows-1251:utf-8') do |row|
         object = {
           :id => row[0].to_s,
           :name => row[1].to_s,
@@ -459,9 +458,8 @@ class App < Sinatra::Base
       halt 400
     end
 
-    data = params[:estates][:tempfile].force_encoding(Encoding::UTF_8)
     session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
-      CSV.parse(data.read, skip_blanks: true) do |row|
+      CSV.parse(params[:estates][:tempfile].read, skip_blanks: true, encoding: 'windows-1251:utf-8') do |row|
         object = {
           :id => row[0].to_s,
           :name => row[1].to_s,
