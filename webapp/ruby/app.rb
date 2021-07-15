@@ -401,7 +401,8 @@ class App < Sinatra::Base
       end
 
     estates = client[:estate].find({:$and => search_queries}, {'projection' => {'_id' => 0}}).sort({:popularity => -1, :id => 1}).limit(per_page).skip(per_page * page)
-    { count: estates.count(), estates: estates.to_a }.to_json
+    results = estates.to_a.map { |e| camelize_keys_for_estate(e) }
+    { count: estates.count(), estates: results }.to_json
   end
 
   post '/api/estate/nazotte' do
