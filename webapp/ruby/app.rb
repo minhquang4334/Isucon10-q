@@ -417,52 +417,18 @@ class App < Sinatra::Base
 
     cor_array = coordinates.map{ |c| c.values_at("latitude", "longitude") }
 
-    client[:gel].insert_one({
-      "polygons" => {
-        :type => "Polygon",
-        :coordinates => cor_array
-      }
-    })
-    longitudes = coordinates.map { |c| c[:longitude] }
-    latitudes = coordinates.map { |c| c[:latitude] }
-    bounding_box = {
-      top_left: {
-        longitude: longitudes.min,
-        latitude: latitudes.min,
-      },
-      bottom_right: {
-        longitude: longitudes.max,
-        latitude: latitudes.max,
-      },
-    }
-
-    estates = client[:estate].find({
-      :$and => [
-        {:latitude => {:$lte => bounding_box[:bottom_right][:latitude]}},
-        {:latitude => {:$gte => bounding_box[:top_left][:latitude]}},
-        {:longitude => {:$lte => bounding_box[:bottom_right][:longitude]}},
-        {:longitude => {:$gte => bounding_box[:top_left][:longitude]}}
-      ]
-    })
-    
-    estates_in_polygon = []
-    estates.each do |estate|
-      check = client[:gel].find({
-        :polygons => {
-          :$geoIntersects => {
-            :$geometry => {
-              :type => "Point",
-              :coordinates => estate.values_at("atitude", "longitude")
-            }
+    estates_in_polygon = client[:estate].find({
+      :coor => {
+        :$geoWithin => {
+          :$geometry => {
+            :type => "Polygon",
+            :coordinates => cor_array
           }
         }
-      }).first
-      if !check.empty?
-        estates_in_polygon << estate
-      end
-    end
+      }
+    }).limit(NAZOTTE_LIMIT)
 
-    nazotte_estates = estates_in_polygon.take(NAZOTTE_LIMIT)
+    nazotte_estates = estates_in_polygon.to_a
     {
       estates: nazotte_estates.map { |e| camelize_keys_for_estate(e) },
       count: nazotte_estates.size,
