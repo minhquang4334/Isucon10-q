@@ -36,7 +36,7 @@ class App < Sinatra::Base
 
   set :add_charset, ['application/json']
   
-  client = Mongo::Client.new([ '54.178.148.87:27017' ],
+  client = Mongo::Client.new([ '172.31.40.59:27017' ],
     user: 'isucon',
     password: 'isucon',
     database: 'isuumo',
