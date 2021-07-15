@@ -152,8 +152,6 @@ class App < Sinatra::Base
   end
 
   get '/api/chair/low_priced' do
- #   sql = "SELECT * FROM chair WHERE stock > 0 ORDER BY price ASC, id ASC LIMIT #{LIMIT}" # XXX:
- #   chairs = db.query(sql).to_a
     chairs = client[:chair].find({:stock => {'$gt' => 0}}).sort({:price => 1, :id => 1}).limit(LIMIT)
     { chairs: chairs.to_a }.to_json
   end
@@ -161,7 +159,6 @@ class App < Sinatra::Base
   get '/api/chair/search' do
     search_queries = []
     query_params = []
-
     if params[:priceRangeId] && params[:priceRangeId].size > 0
       chair_price = chair_search_condition[:price][:ranges][params[:priceRangeId].to_i]
       unless chair_price
@@ -169,14 +166,17 @@ class App < Sinatra::Base
         halt 400
       end
 
+      price = {:price => {}}
       if chair_price[:min] != -1
-        search_queries << 'price >= ?'
-        query_params << chair_price[:min]
+        price[:price][:$gte] = chair_price[:min]
       end
 
       if chair_price[:max] != -1
-        search_queries << 'price < ?'
-        query_params << chair_price[:max]
+        price[:price][:$lt] = chair_price[:max]
+      end
+
+      if price[:price].present?
+        search_queries << price
       end
     end
 
@@ -187,14 +187,17 @@ class App < Sinatra::Base
         halt 400
       end
 
+      height = {:height => {}}
       if chair_height[:min] != -1
-        search_queries << 'height >= ?'
-        query_params << chair_height[:min]
+        height[:height][:$gte] = chair_height[:min]
       end
 
       if chair_height[:max] != -1
-        search_queries << 'height < ?'
-        query_params << chair_height[:max]
+        height[:height][:$lt] = chair_height[:max]
+      end
+
+      if height[:height].present?
+        search_queries << height
       end
     end
 
@@ -205,14 +208,17 @@ class App < Sinatra::Base
         halt 400
       end
 
+      width = {:width => {}}
       if chair_width[:min] != -1
-        search_queries << 'width >= ?'
-        query_params << chair_width[:min]
+        width[:width][:$gte] = chair_width[:min]
       end
 
       if chair_width[:max] != -1
-        search_queries << 'width < ?'
-        query_params << chair_width[:max]
+        width[:width][:$lt] = chair_width[:max]
+      end
+
+      if width[:width].present?
+        search_queries << width
       end
     end
 
@@ -223,31 +229,33 @@ class App < Sinatra::Base
         halt 400
       end
 
+      depth = {:depth => {}}
       if chair_depth[:min] != -1
-        search_queries << 'depth >= ?'
-        query_params << chair_depth[:min]
+        depth[:depth][:$gte] = chair_depth[:min]
       end
 
       if chair_depth[:max] != -1
-        search_queries << 'depth < ?'
-        query_params << chair_depth[:max]
+        depth[:depth][:$lt] = chair_depth[:max]
+      end
+
+      if depth[:depth].present?
+        search_queries << depth
       end
     end
 
     if params[:kind] && params[:kind].size > 0
-      search_queries << 'kind = ?'
-      query_params << params[:kind]
+      search_queries <<  {:kind => params[:kind]}
     end
 
     if params[:color] && params[:color].size > 0
-      search_queries << 'color = ?'
-      query_params << params[:color]
+      search_queries <<  {:color => params[:color]}
     end
 
     if params[:features] && params[:features].size > 0
+      feature = {:feature => {}}
+      
       params[:features].split(',').each do |feature_condition|
-        search_queries << "features LIKE CONCAT('%', ?, '%')"
-        query_params.push(feature_condition)
+        search_queries << {:features => /#{feature_condition}/}
       end
     end
 
@@ -256,7 +264,7 @@ class App < Sinatra::Base
       halt 400
     end
 
-    search_queries.push('stock > 0')
+    search_queries.push({:stock => {:$gt => 0}})
 
     page =
       begin
@@ -273,16 +281,8 @@ class App < Sinatra::Base
         logger.error "Invalid format perPage parameter: #{e.inspect}"
         halt 400
       end
-
-    sqlprefix = 'SELECT * FROM chair WHERE '
-    search_condition = search_queries.join(' AND ')
-    limit_offset = " ORDER BY popularity DESC, id ASC LIMIT #{per_page} OFFSET #{per_page * page}" # XXX: mysql-cs-bind doesn't support escaping variables for limit and offset
-    count_prefix = 'SELECT COUNT(*) as count FROM chair WHERE '
-
-    count = db.xquery("#{count_prefix}#{search_condition}", query_params).first[:count]
-    chairs = db.xquery("#{sqlprefix}#{search_condition}#{limit_offset}", query_params).to_a
-
-    { count: count, chairs: chairs }.to_json
+    chairs = client[:chair].find({:$and => search_queries}).limit(per_page).skip(per_page * page)
+    { count: chairs.count(), chairs: chairs }.to_json
   end
 
   get '/api/chair/:id' do
@@ -294,7 +294,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    chair = db.xquery('SELECT * FROM chair WHERE id = ?', id).first
+    chair = client[:chair].findOne({:id => id})
     unless chair
       logger.info "Requested id's chair not found: #{id}"
       halt 404
@@ -355,8 +355,6 @@ class App < Sinatra::Base
   end
 
   get '/api/estate/low_priced' do
-#    sql = "SELECT * FROM estate ORDER BY rent ASC, id ASC LIMIT #{LIMIT}" # XXX:
-#    estates = db.xquery(sql).to_a
      estates = client[:estate].find().sort({:rent => 1, :id => 1}).limit(LIMIT)
 
      { estates: estates.to_a.map { |e| camelize_keys_for_estate(e) } }.to_json
@@ -373,14 +371,17 @@ class App < Sinatra::Base
         halt 400
       end
 
+      door_height = {:door_height => {}}
       if door_height[:min] != -1
-        search_queries << 'door_height >= ?'
-        query_params << door_height[:min]
+        door_height[:door_height][:$gte] = door_height[:min]
       end
 
       if door_height[:max] != -1
-        search_queries << 'door_height < ?'
-        query_params << door_height[:max]
+        door_height[:door_height][:$lt] = door_height[:max]
+      end
+
+      if door_height[:door_height].present?
+        search_queries << door_height
       end
     end
 
@@ -391,14 +392,17 @@ class App < Sinatra::Base
         halt 400
       end
 
+      door_width = {:door_width => {}}
       if door_width[:min] != -1
-        search_queries << 'door_width >= ?'
-        query_params << door_width[:min]
+        door_width[:door_width][:$gte] = door_width[:min]
       end
 
       if door_width[:max] != -1
-        search_queries << 'door_width < ?'
-        query_params << door_width[:max]
+        door_width[:door_width][:$lt] = door_width[:max]
+      end
+
+      if door_width[:door_width].present?
+        search_queries << door_width
       end
     end
 
@@ -409,21 +413,25 @@ class App < Sinatra::Base
         halt 400
       end
 
+      rent = {:rent => {}}
       if rent[:min] != -1
-        search_queries << 'rent >= ?'
-        query_params << rent[:min]
+        rent[:rent][:$gte] = rent[:min]
       end
 
       if rent[:max] != -1
-        search_queries << 'rent < ?'
-        query_params << rent[:max]
+        rent[:rent][:$lt] = rent[:max]
+      end
+
+      if rent[:rent].present?
+        search_queries << rent
       end
     end
 
     if params[:features] && params[:features].size > 0
+      feature = {:feature => {}}
+      
       params[:features].split(',').each do |feature_condition|
-        search_queries << "features LIKE CONCAT('%', ?, '%')"
-        query_params.push(feature_condition)
+        search_queries << {:features => /#{feature_condition}/}
       end
     end
 
@@ -448,15 +456,8 @@ class App < Sinatra::Base
         halt 400
       end
 
-    sqlprefix = 'SELECT * FROM estate WHERE '
-    search_condition = search_queries.join(' AND ')
-    limit_offset = " ORDER BY popularity DESC, id ASC LIMIT #{per_page} OFFSET #{per_page * page}" # XXX:
-    count_prefix = 'SELECT COUNT(*) as count FROM estate WHERE '
-
-    count = db.xquery("#{count_prefix}#{search_condition}", query_params).first[:count]
-    estates = db.xquery("#{sqlprefix}#{search_condition}#{limit_offset}", query_params).to_a
-
-    { count: count, estates: estates.map { |e| camelize_keys_for_estate(e) } }.to_json
+    estates = client[:estate].find({:$and => search_queries}).limit(per_page).skip(per_page * page)
+    { count: chairs.count(), chairs: chairs }.to_json
   end
 
   post '/api/estate/nazotte' do
@@ -515,7 +516,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estate = db.xquery('SELECT * FROM estate WHERE id = ?', id).first
+    estate = client[:estate].findOne({:id => id})
     unless estate
       logger.info "Requested id's estate not found: #{id}"
       halt 404
@@ -576,7 +577,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    chair = db.xquery('SELECT * FROM chair WHERE id = ?', id).first
+    chair = client[:estate].findOne({:id => id})
     unless chair
       logger.error "Requested id's chair not found: #{id}"
       halt 404
@@ -586,9 +587,47 @@ class App < Sinatra::Base
     h = chair[:height]
     d = chair[:depth]
 
-    sql = "SELECT * FROM estate WHERE (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) ORDER BY popularity DESC, id ASC LIMIT #{LIMIT}" # XXX:
-    estates = db.xquery(sql, w, h, w, d, h, w, h, d, d, w, d, h).to_a
-
+    query = {
+      :$or => [
+        {
+          :$and => [
+            { :door_width => { :$gte => w } },
+            { :door_height => { :$gte => h } }
+          ]
+        },
+        {
+          :$and => [
+            { :door_width => { :$gte => w } },
+            { :door_height => { :$gte => d } }
+          ]
+        },
+        {
+          :$and => [
+            { :door_width => { :$gte => h } },
+            { :door_height => { :$gte => w } }
+          ]
+        },
+        {
+          :$and => [
+            { :door_width => { :$gte => h } },
+            { :door_height => { :$gte => d } }
+          ]
+        },
+        {
+          :$and => [
+            { :door_width => { :$gte => d } },
+            { :door_height => { :$gte => w } }
+          ]
+        },
+        {
+          :$and => [
+            { :door_width => { :$gte => d } },
+            { :door_height => { :$gte => h } }
+          ]
+        },
+      ]
+    }
+    estates = client[:estate].find(query).sort({:popularity => -1, :id => 1}).limit(LIMIT)
     { estates: estates.map { |e| camelize_keys_for_estate(e) } }.to_json
   end
 end
