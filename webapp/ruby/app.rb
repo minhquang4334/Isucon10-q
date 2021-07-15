@@ -241,7 +241,7 @@ class App < Sinatra::Base
     end
 
     session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
-      CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true, encoding: 'ASCII-8BIT:UTF-8') do |row|
+      CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
         object = {
           :id => row[0].to_s,
           :name => row[1].to_s,
@@ -459,7 +459,7 @@ class App < Sinatra::Base
     end
 
     session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
-      CSV.parse(params[:estates][:tempfile].read, skip_blanks: true, encoding: 'ASCII-8BIT:UTF-8') do |row|
+      CSV.parse(params[:estates][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
         object = {
           :id => row[0].to_s,
           :name => row[1].to_s,
