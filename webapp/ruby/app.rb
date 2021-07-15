@@ -49,6 +49,9 @@ class App < Sinatra::Base
       estate_hash.tap do |e|
         e[:doorHeight] = e.delete(:door_height)
         e[:doorWidth] = e.delete(:door_width)
+        e[:longitude] = e[:coor][0]
+        e[:latitude] = e[:coor][1]
+        e.delete(:coor)
       end
     end
 
