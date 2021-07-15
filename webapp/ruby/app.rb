@@ -415,7 +415,7 @@ class App < Sinatra::Base
       halt 400
     end
 
-    cor_array = coordinates.map{ |c| c.values_at(:latitude, :longitude) }
+    cor_array = coordinates.map{ |c| c.values_at("latitude", "longitude") }
 
     client[:gel].insert_one({
       "polygons" => {
@@ -452,7 +452,7 @@ class App < Sinatra::Base
           :$geoIntersects => {
             :$geometry => {
               :type => "Point",
-              :coordinates => estate.values_at(:latitude, :longitude)
+              :coordinates => estate.values_at("atitude", "longitude")
             }
           }
         }
