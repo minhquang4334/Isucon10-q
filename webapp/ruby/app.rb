@@ -220,7 +220,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    chair = client[:chair].findOne({:id => id}).first
+    chair = client[:chair].find({:id => id}).first
     unless chair
       logger.info "Requested id's chair not found: #{id}"
       halt 404
@@ -240,7 +240,7 @@ class App < Sinatra::Base
       halt 400
     end
 
-    callback = Proc.new do |my_session|
+    session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
       CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true) do |row|
         object = {
           :id => row[0].to_s,
@@ -260,12 +260,7 @@ class App < Sinatra::Base
         client[:chair].insert_one(object, session: my_session)
       end
     end
-    session.with_transaction(
-      read_concern: {level: :local},
-      write_concern: {w: :majority, wtimeout: 1000},
-      read: {mode: :primary},
-      &callback
-    )
+
     status 201
   end
 
@@ -283,8 +278,8 @@ class App < Sinatra::Base
         halt 400
       end
 
-    callback = Proc.new do |my_session|
-      client[:chair].findOneAndUpdate(
+    session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
+      client[:chair].update_one(
         {
           :$and => [{:id => id}, {:stock => {:$gt => 0}}]
         },
@@ -294,13 +289,6 @@ class App < Sinatra::Base
         session: my_session
       )
     end
-
-    session.with_transaction(
-      read_concern: {level: :local},
-      write_concern: {w: :majority, wtimeout: 1000},
-      read: {mode: :primary},
-      &callback
-    )
 
     status 200
   end
@@ -460,7 +448,7 @@ class App < Sinatra::Base
     
     estates_in_polygon = []
     estates.each do |estate|
-      check = client[:gel].findOne({
+      check = client[:gel].find({
         :polygons => {
           :$geoIntersects => {
             :$geometry => {
@@ -491,7 +479,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estate = client[:estate].findOne({:id => id}).first
+    estate = client[:estate].find({:id => id}).first
     unless estate
       logger.info "Requested id's estate not found: #{id}"
       halt 404
@@ -506,7 +494,7 @@ class App < Sinatra::Base
       halt 400
     end
 
-    callback = Proc.new do |my_session|
+    session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
       CSV.parse(params[:estates][:tempfile].read, skip_blanks: true) do |row|
         object = {
           :id => row[0].to_s,
@@ -526,13 +514,6 @@ class App < Sinatra::Base
       end
     end
 
-    session.with_transaction(
-      read_concern: {level: :local},
-      write_concern: {w: :majority, wtimeout: 1000},
-      read: {mode: :primary},
-      &callback
-    )
-
     status 201
   end
 
@@ -550,7 +531,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estate = client[:estate].findOne({:id => id}).first
+    estate = client[:estate].find({:id => id}).first
     unless estate
       logger.error "Requested id's estate not found: #{id}"
       halt 404
@@ -572,7 +553,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    chair = client[:estate].findOne({:id => id}).first
+    chair = client[:estate].find({:id => id}).first
     unless chair
       logger.error "Requested id's chair not found: #{id}"
       halt 404
