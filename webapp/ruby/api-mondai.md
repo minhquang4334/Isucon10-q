@@ -16,18 +16,21 @@ estates.each do |estate|
 end
 ```
 - fix
+  - https://stackoverflow.com/questions/16559044/using-column-names-as-a-parameter-of-point-geometry-in-mysql
 ```ruby
-estate_ids = estates.map { |estate| estate[:id] }
-points = estates.map { |estate| "'POINT(%f %f)'" % estate.values_at(:latitude, :longitude) }
-coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
-
-sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(POINT(latitude longitude))) FROM estate WHERE id IN ? LIMIT ?' % [coordinates_to_text]
-
-estates_in_polygon = db.xquery(sql, estate_ids, NAZOTTE_LIMIT)
-nazotte_estates = estates_in_polygon.select { |e| e.is_geom_contain }
+estate_ids = estates.map { |estate| estate[:id] }.join(',')
+if estate_ids.empty?
+  nazotte_estates = []
+else
+  points = estates.map { |estate| "'POINT(%f %f)'" % estate.values_at(:latitude, :longitude) }
+  coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
+  text = "CONCAT('POINT(', latitude, ' ', longitude, ')')"
+  sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s)) as is_geom_contain FROM estate WHERE id IN %s LIMIT %i' % [coordinates_to_text, text, "(#{estate_ids})", NAZOTTE_LIMIT]
+  
+  estates_in_polygon = db.xquery(sql)
+  nazotte_estates = estates_in_polygon.select { |e| e[:is_geom_contain] }
+end
 ```
-
-
 ## POST /api/estate
 - Send file to Server and read file
 - 列ごとにInsert Queryが発行される
@@ -45,7 +48,6 @@ post '/api/estate' do
       db.xquery(sql, *row.map(&:to_s))
     end
   end
-
   status 201
 end
 ```
@@ -59,7 +61,7 @@ post '/api/estate' do
 
   arr_values = []
   CSV.parse(params[:estates][:tempfile].read, skip_blanks: true) do |row|
-    v = "(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)" % *row.map(&:to_s)
+    v = "(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)" % [*row.map(&:to_s)]
     arr_values << v
   end
   values = arr_values.join(',')

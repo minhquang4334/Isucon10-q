@@ -3,26 +3,28 @@ require 'mysql2'
 require 'mysql2-cs-bind'
 require 'csv'
 require 'logger'
-require 'redis'
+# require 'redis'
 logger = Logger.new(STDOUT)
 
 class App < Sinatra::Base
   LIMIT = 20
   NAZOTTE_LIMIT = 50
-  redis = Redis.new host:"127.0.0.1", port: "6379"
+  # redis = Redis.new host:"127.0.0.1", port: "6379"
 
-  chair_cond = redis.get(:chair_search_condition);
-  if !chair_cond
-    chair_cond = File.read('../fixture/chair_condition.json')
-    redis.set(:chair_search_condition, chair_cond)
-  end
+  # chair_cond = redis.get(:chair_search_condition);
+  # if !chair_cond
+  #   chair_cond = File.read('../fixture/chair_condition.json')
+  #   redis.set(:chair_search_condition, chair_cond)
+  # end
+  chair_cond = File.read('../fixture/chair_condition.json')
   chair_search_condition = JSON.parse(chair_cond, symbolize_names: true)
 
-  estate_cond = redis.get(:estate_search_condition)
-  if !estate_cond
-    estate_cond = File.read('../fixture/estate_condition.json')
-    redis.set(:estate_search_condition, estate_cond)
-  end
+  # estate_cond = redis.get(:estate_search_condition)
+  # if !estate_cond
+  #   estate_cond = File.read('../fixture/estate_condition.json')
+  #   redis.set(:estate_search_condition, estate_cond)
+  # end
+  estate_cond = File.read('../fixture/estate_condition.json')
   estate_search_condition = JSON.parse(estate_cond, symbolize_names: true)
   configure :development do
     require 'sinatra/reloader'
@@ -116,15 +118,15 @@ class App < Sinatra::Base
   end
 
   post '/initialize' do
-    sql_dir = Pathname.new('../mysql/db')
-    %w[0_Schema.sql 1_DummyEstateData.sql 2_DummyChairData.sql].each do |sql|
-      sql_path = sql_dir.join(sql)
-      cmd = ['mysql', '-h', db_info[:host], '-u', db_info[:username], "-p#{db_info[:password]}", '-P', db_info[:port], db_info[:database]]
-      IO.popen(cmd, 'w') do |io|
-        io.puts File.read(sql_path)
-        io.close
-      end
-    end
+    # sql_dir = Pathname.new('/Users/hoang.minh.quang/Documents/isucon/isucon10-qualify/webapp/mysql/db')
+    # %w[0_Schema.sql 1_DummyEstateData.sql 2_DummyChairData.sql].each do |sql|
+    #   sql_path = sql_dir.join(sql)
+    #   cmd = ['mysql', '-h', db_info[:host], '-u', db_info[:username], "-p#{db_info[:password]}", '-P', db_info[:port], db_info[:database]]
+    #   IO.popen(cmd, 'w') do |io|
+    #     io.puts File.read(sql_path)
+    #     io.close
+    #   end
+    # end
 
     { language: 'ruby' }.to_json
   end
@@ -471,15 +473,19 @@ class App < Sinatra::Base
     sql = 'SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC'
     estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
 
-    estate_ids = estates.map { |estate| estate[:id] }
-    points = estates.map { |estate| "'POINT(%f %f)'" % estate.values_at(:latitude, :longitude) }
-    coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
-    
-    sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(POINT(latitude longitude))) as is_geom_contain FROM estate WHERE id IN ? LIMIT ?' % [coordinates_to_text]
-    
-    estates_in_polygon = db.xquery(sql, estate_ids, NAZOTTE_LIMIT)
+    estate_ids = estates.map { |estate| estate[:id] }.join(',')
+    if estate_ids.empty?
+      nazotte_estates = []
+    else
+      points = estates.map { |estate| "'POINT(%f %f)'" % estate.values_at(:latitude, :longitude) }
+      coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
+      text = "CONCAT('POINT(', latitude, ' ', longitude, ')')"
+      sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s)) as is_geom_contain FROM estate WHERE id IN %s LIMIT %i' % [coordinates_to_text, text, "(#{estate_ids})", NAZOTTE_LIMIT]
+      
+      estates_in_polygon = db.xquery(sql)
+      nazotte_estates = estates_in_polygon.select { |e| e[:is_geom_contain] }
+    end
 
-    nazotte_estates = estates_in_polygon.select { |e| e.is_geom_contain }
     {
       estates: nazotte_estates.map { |e| camelize_keys_for_estate(e) },
       count: nazotte_estates.size,
@@ -512,7 +518,7 @@ class App < Sinatra::Base
   
     arr_values = []
     CSV.parse(params[:estates][:tempfile].read, skip_blanks: true) do |row|
-      v = "(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)" % *row.map(&:to_s)
+      v = "(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)" % [*row.map(&:to_s)]
       arr_values << v
     end
     values = arr_values.join(',')
