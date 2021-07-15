@@ -35,77 +35,16 @@ class App < Sinatra::Base
   end
 
   set :add_charset, ['application/json']
-
-  client = Mongo::Client.new([ '54.178.148.87:27017' ],
+  
+  Thread.current[:client] ||= Mongo::Client.new([ '54.178.148.87:27017' ],
     user: 'isucon',
     password: 'isucon',
-    database: 'isuumo' )
-  
+    database: 'isuumo',
+    write_concern: {w: :majority, wtimeout: 1000}
+  )
+  session = client.start_session
+
   helpers do
-    def db_info
-      {
-        host: ENV.fetch('MYSQL_HOST', '127.0.0.1'),
-        port: ENV.fetch('MYSQL_PORT', '3306'),
-        username: ENV.fetch('MYSQL_USER', 'isucon'),
-        password: ENV.fetch('MYSQL_PASS', 'isucon'),
-        database: ENV.fetch('MYSQL_DBNAME', 'isuumo'),
-      }
-    end
-
-    def db
-      Thread.current[:db] ||= Mysql2::Client.new(
-        host: db_info[:host],
-        port: db_info[:port],
-        username: db_info[:username],
-        password: db_info[:password],
-        database: db_info[:database],
-        reconnect: true,
-        symbolize_keys: true,
-      )
-    end
-
-    def transaction(name)
-      begin_transaction(name)
-      yield(name)
-      commit_transaction(name)
-    rescue Exception => e
-      logger.error "Failed to commit tx: #{e.inspect}"
-      rollback_transaction(name)
-      raise
-    ensure
-      ensure_to_abort_transaction(name)
-    end
-
-    def begin_transaction(name)
-      Thread.current[:db_transaction] ||= {}
-      db.query('BEGIN')
-      Thread.current[:db_transaction][name] = :open
-    end
-
-    def commit_transaction(name)
-      Thread.current[:db_transaction] ||= {}
-      db.query('COMMIT')
-      Thread.current[:db_transaction][name] = :nil
-    end
-
-    def rollback_transaction(name)
-      Thread.current[:db_transaction] ||= {}
-      db.query('ROLLBACK')
-      Thread.current[:db_transaction][name] = :nil
-    end
-
-    def ensure_to_abort_transaction(name)
-      Thread.current[:db_transaction] ||= {}
-      if in_transaction?(name)
-        logger.warn "Transaction closed implicitly (#{$$}, #{Thread.current.object_id}): #{name}"
-        rollback_transaction(name)
-      end
-    end
-
-    def in_transaction?(name)
-      Thread.current[:db_transaction] && Thread.current[:db_transaction][name] == :open
-    end
-
     def camelize_keys_for_estate(estate_hash)
       estate_hash.tap do |e|
         e[:doorHeight] = e.delete(:door_height)
@@ -122,17 +61,6 @@ class App < Sinatra::Base
   end
 
   post '/initialize' do
-#    chair_file = File.open('../mongo/chair.json')
-#    estate_file = File.open('../mongo/estate.json')
-#    chunk_size = 1000
-#    chair_hash = Json::Streamer.parser(file_io: chair_file, chunk_size: chunk_size)
-#    estate_hash = Json::Streamer.parser(file_io: estate_file, chunk_size: chunk_size)
-#    chair_hash.get(nesting_level:1) do |object|
-#      client[:chair].insert_one(object)
-#    end
-#    estate_hash.get(nesting_level:1) do |object|
-#      client[:estate].insert_one(object)
-#    end
      chair_pid = spawn("mongoimport --host 54.178.148.87 -u isucon -p isucon --db isuumo --collection chair --drop --jsonArray --file ../mongo/chair.json")
      Process.wait(chair_pid)
      es_pid = spawn("mongoimport --host 54.178.148.87 -u isucon -p isucon --db isuumo --collection estate --drop --jsonArray --file ../mongo/estate.json")    
@@ -156,7 +84,7 @@ class App < Sinatra::Base
 
   get '/api/chair/search' do
     search_queries = []
-    query_params = []
+
     if params[:priceRangeId] && params[:priceRangeId].size > 0
       chair_price = chair_search_condition[:price][:ranges][params[:priceRangeId].to_i]
       unless chair_price
@@ -312,25 +240,32 @@ class App < Sinatra::Base
       halt 400
     end
 
-    CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true) do |row|
-      object = {
-        :id => row[0].to_s,
-        :name => row[1].to_s,
-        :description => row[2].to_s,
-        :thumbnail => row[3].to_s,
-        :price => row[4].to_s,
-        :height => row[5].to_s,
-        :width => row[6].to_s,
-        :depth => row[7].to_s,
-        :color => row[8].to_s,
-        :features => row[9].to_s,
-        :kind => row[10].to_s,
-        :popularity => row[11].to_s,
-        :stock => row[12].to_s
-      }
-      client[:chair].insert_one(object)
+    callback = Proc.new do |my_session|
+      CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true) do |row|
+        object = {
+          :id => row[0].to_s,
+          :name => row[1].to_s,
+          :description => row[2].to_s,
+          :thumbnail => row[3].to_s,
+          :price => row[4].to_s,
+          :height => row[5].to_s,
+          :width => row[6].to_s,
+          :depth => row[7].to_s,
+          :color => row[8].to_s,
+          :features => row[9].to_s,
+          :kind => row[10].to_s,
+          :popularity => row[11].to_s,
+          :stock => row[12].to_s
+        }
+        client[:chair].insert_one(object, session: my_session)
+      end
     end
-
+    session.with_transaction(
+      read_concern: {level: :local},
+      write_concern: {w: :majority, wtimeout: 1000},
+      read: {mode: :primary},
+      &callback
+    )
     status 201
   end
 
@@ -348,13 +283,23 @@ class App < Sinatra::Base
         halt 400
       end
 
-    client[:chair].findOneAndUpdate(
-      {
-        :$and => [{:id => id}, {:stock => {:$gt => 0}}]
-      },
-      {
-        :$inc => {:stock: -1}
-      }
+    callback = Proc.new do |my_session|
+      client[:chair].findOneAndUpdate(
+        {
+          :$and => [{:id => id}, {:stock => {:$gt => 0}}]
+        },
+        {
+          :$inc => {:stock => -1}
+        },
+        session: my_session
+      )
+    end
+
+    session.with_transaction(
+      read_concern: {level: :local},
+      write_concern: {w: :majority, wtimeout: 1000},
+      read: {mode: :primary},
+      &callback
     )
 
     status 200
@@ -561,23 +506,32 @@ class App < Sinatra::Base
       halt 400
     end
 
-    CSV.parse(params[:estates][:tempfile].read, skip_blanks: true) do |row|
-      object = {
-        :id => row[0].to_s,
-        :name => row[1].to_s,
-        :description => row[2].to_s,
-        :thumbnail => row[3].to_s,
-        :address => row[4].to_s,
-        :latitude => row[5].to_s,
-        :longitude => row[6].to_s,
-        :rent => row[7].to_s,
-        :door_height => row[8].to_s,
-        :door_width => row[9].to_s,
-        :features => row[10].to_s,
-        :popularity => row[11].to_s
-      }
-      client[:chair].insert_one(object)
+    callback = Proc.new do |my_session|
+      CSV.parse(params[:estates][:tempfile].read, skip_blanks: true) do |row|
+        object = {
+          :id => row[0].to_s,
+          :name => row[1].to_s,
+          :description => row[2].to_s,
+          :thumbnail => row[3].to_s,
+          :address => row[4].to_s,
+          :latitude => row[5].to_s,
+          :longitude => row[6].to_s,
+          :rent => row[7].to_s,
+          :door_height => row[8].to_s,
+          :door_width => row[9].to_s,
+          :features => row[10].to_s,
+          :popularity => row[11].to_s
+        }
+        client[:estate].insert_one(object)
+      end
     end
+
+    session.with_transaction(
+      read_concern: {level: :local},
+      write_concern: {w: :majority, wtimeout: 1000},
+      read: {mode: :primary},
+      &callback
+    )
 
     status 201
   end
