@@ -397,7 +397,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estates = client[:estate].find({:$and => search_queries}, {'projection' => {'_id' => 0}}).limit(per_page).skip(per_page * page)
+    estates = client[:estate].find({:$and => search_queries}, {'projection' => {'_id' => 0}}).sort({:popularity => -1, :id => 1}).limit(per_page).skip(per_page * page)
     { count: estates.count(), estates: estates.to_a }.to_json
   end
 
@@ -494,7 +494,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estate = client[:estate].find({:id => id}, {'projection' => {'_id' => 0}}).sort({:popularity => -1, :id => 1}).first
+    estate = client[:estate].find({:id => id}, {'projection' => {'_id' => 0}}).first
     unless estate
       logger.error "Requested id's estate not found: #{id}"
       halt 404
