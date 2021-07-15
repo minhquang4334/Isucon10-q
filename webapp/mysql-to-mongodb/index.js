@@ -14,9 +14,9 @@ var initModelsEstate = require("./init-models-estate");
 var modelsEstate = initModelsEstate(sequelize);
 modelsEstate.estate.findAll({}).then((estates) => {
   estates.forEach(element => {
-    element.dataValues.coor = [element.dataValues.latitude, element.dataValues.longitude]
-    delete element.dataValues.latitude
+    element.dataValues.coor = [element.dataValues.longitude, element.dataValues.latitude]
     delete element.dataValues.longitude
+    delete element.dataValues.latitude
   });
   fs.writeFileSync(path.resolve(__dirname, '../mongo/estate.json'), JSON.stringify(estates, null, 2));
   console.log('donewriting')

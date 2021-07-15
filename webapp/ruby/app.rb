@@ -42,7 +42,6 @@ class App < Sinatra::Base
     database: 'isuumo',
     write_concern: {w: :majority, wtimeout: 1000}
   )
-  client[:estate].indexes.create_one( { 'coor' => '2dsphere' })
   session = client.start_session
 
   helpers do
@@ -62,12 +61,13 @@ class App < Sinatra::Base
   end
 
   post '/initialize' do
-     chair_pid = spawn("mongoimport --host 54.178.148.87 -u isucon -p isucon --db isuumo --collection chair --drop --jsonArray --file ../mongo/chair.json")
-     Process.wait(chair_pid)
-     es_pid = spawn("mongoimport --host 54.178.148.87 -u isucon -p isucon --db isuumo --collection estate --drop --jsonArray --file ../mongo/estate.json")    
-     Process.wait(es_pid)
-
-     { language: 'ruby' }.to_json
+    chair_pid = spawn("mongoimport --host 54.178.148.87 -u isucon -p isucon --db isuumo --collection chair --drop --jsonArray --file ../mongo/chair.json")
+    Process.wait(chair_pid)
+    es_pid = spawn("mongoimport --host 54.178.148.87 -u isucon -p isucon --db isuumo --collection estate --drop --jsonArray --file ../mongo/estate.json")    
+    Process.wait(es_pid)
+    client[:estate].indexes.create_one({ 'coor' => '2dsphere' })
+     
+    { language: 'ruby' }.to_json
   end
 
   post '/deploy' do
