@@ -301,17 +301,17 @@ class App < Sinatra::Base
         halt 400
       end
 
-      door_height = {:door_height => {}}
+      height = {:door_height => {}}
       if door_height[:min] != -1
-        door_height[:door_height][:$gte] = door_height[:min]
+        height[:door_height][:$gte] = door_height[:min]
       end
 
       if door_height[:max] != -1
-        door_height[:door_height][:$lt] = door_height[:max]
+        height[:door_height][:$lt] = door_height[:max]
       end
 
-      if !door_height[:door_height].empty?
-        search_queries << door_height
+      if !height[:door_height].empty?
+        search_queries << height
       end
     end
 
@@ -322,17 +322,17 @@ class App < Sinatra::Base
         halt 400
       end
 
-      door_width = {:door_width => {}}
+      width = {:door_width => {}}
       if door_width[:min] != -1
-        door_width[:door_width][:$gte] = door_width[:min]
+        width[:door_width][:$gte] = door_width[:min]
       end
 
       if door_width[:max] != -1
-        door_width[:door_width][:$lt] = door_width[:max]
+        width[:door_width][:$lt] = door_width[:max]
       end
 
-      if !door_width[:door_width].empty?
-        search_queries << door_width
+      if !width[:door_width].empty?
+        search_queries << width
       end
     end
 
@@ -343,17 +343,17 @@ class App < Sinatra::Base
         halt 400
       end
 
-      rent = {:rent => {}}
+      rent_query = {:rent => {}}
       if rent[:min] != -1
-        rent[:rent][:$gte] = rent[:min]
+        rent_query[:rent][:$gte] = rent[:min]
       end
 
       if rent[:max] != -1
-        rent[:rent][:$lt] = rent[:max]
+        rent_query[:rent][:$lt] = rent[:max]
       end
 
-      if !rent[:rent].empty?
-        search_queries << rent
+      if !rent_query[:rent].empty?
+        search_queries << rent_query
       end
     end
 
@@ -387,7 +387,10 @@ class App < Sinatra::Base
       end
 
     estates = client[:estate].find({:$and => search_queries}, {'projection' => {'_id' => 0}}).sort({:popularity => -1, :id => 1}).limit(per_page).skip(per_page * page)
-    results = estates.to_a.map { |e| camelize_keys_for_estate(e) }
+    results = estates.to_a
+    if !results.empty
+      results = results.map { |e| camelize_keys_for_estate(e) }
+    end
     { count: estates.count(), estates: results }.to_json
   end
 
