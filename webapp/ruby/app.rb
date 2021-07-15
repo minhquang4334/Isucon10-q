@@ -471,13 +471,13 @@ class App < Sinatra::Base
     sql = 'SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC'
     estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
 
-    estate_ids = estates.map { |estate| estate[:id] }
+    estate_ids = estates.map { |estate| estate[:id] }.join(',')
     points = estates.map { |estate| "'POINT(%f %f)'" % estate.values_at(:latitude, :longitude) }
     coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
     
-    sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(POINT(latitude longitude))) as is_geom_contain FROM estate WHERE id IN ? LIMIT ?' % [coordinates_to_text]
+    sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText("POINT(latitude longitude)")) as is_geom_contain FROM estate WHERE id IN ? LIMIT ?' % [coordinates_to_text]
     
-    estates_in_polygon = db.xquery(sql, estate_ids, NAZOTTE_LIMIT)
+    estates_in_polygon = db.xquery(sql, "(#{estate_ids})", NAZOTTE_LIMIT)
 
     nazotte_estates = estates_in_polygon.select { |e| e.is_geom_contain }
     {
