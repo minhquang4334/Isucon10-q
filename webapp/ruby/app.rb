@@ -3,7 +3,6 @@ require 'mongo'
 require 'csv'
 require 'logger'
 require 'redis'
-require 'json/streamer'
 
 logger = Logger.new(STDOUT)
 
@@ -78,7 +77,7 @@ class App < Sinatra::Base
   end
 
   get '/api/chair/low_priced' do
-    chairs = client[:chair].find({:stock => {'$gt' => 0}}).sort({:price => 1, :id => 1}).limit(LIMIT)
+    chairs = client[:chair].find({:stock => {'$gt' => 0}}, {'projection' => {'_id' => 0}}).sort({:price => 1, :id => 1}).limit(LIMIT)
     { chairs: chairs.to_a }.to_json
   end
 
@@ -207,7 +206,7 @@ class App < Sinatra::Base
         logger.error "Invalid format perPage parameter: #{e.inspect}"
         halt 400
       end
-    chairs = client[:chair].find({:$and => search_queries}).limit(per_page).skip(per_page * page)
+    chairs = client[:chair].find({:$and => search_queries}, {'projection' => {'_id' => 0}}).limit(per_page).skip(per_page * page)
     { count: chairs.count(), chairs: chairs.to_a }.to_json
   end
 
@@ -220,7 +219,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    chair = client[:chair].find({:id => id}).first
+    chair = client[:chair].find({:id => id}, {'projection' => {'_id' => 0}}).first
     unless chair
       logger.info "Requested id's chair not found: #{id}"
       halt 404
@@ -297,7 +296,7 @@ class App < Sinatra::Base
   end
 
   get '/api/estate/low_priced' do
-     estates = client[:estate].find().sort({:rent => 1, :id => 1}).limit(LIMIT)
+     estates = client[:estate].find({}, {'projection' => {'_id' => 0}}).sort({:rent => 1, :id => 1}).limit(LIMIT)
 
      { estates: estates.to_a.map { |e| camelize_keys_for_estate(e) } }.to_json
   end
@@ -398,7 +397,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estates = client[:estate].find({:$and => search_queries}).limit(per_page).skip(per_page * page)
+    estates = client[:estate].find({:$and => search_queries}, {'projection' => {'_id' => 0}}).limit(per_page).skip(per_page * page)
     { count: estates.count(), estates: estates.to_a }.to_json
   end
 
@@ -425,7 +424,7 @@ class App < Sinatra::Base
           }
         }
       }
-    }).limit(NAZOTTE_LIMIT)
+    }, {'projection' => {'_id' => 0}}).limit(NAZOTTE_LIMIT)
 
     nazotte_estates = estates_in_polygon.to_a
     {
@@ -443,7 +442,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estate = client[:estate].find({:id => id}).first
+    estate = client[:estate].find({:id => id}, {'projection' => {'_id' => 0}}).first
     unless estate
       logger.info "Requested id's estate not found: #{id}"
       halt 404
@@ -495,7 +494,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estate = client[:estate].find({:id => id}).first
+    estate = client[:estate].find({:id => id}, {'projection' => {'_id' => 0}}).first
     unless estate
       logger.error "Requested id's estate not found: #{id}"
       halt 404
@@ -517,7 +516,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    chair = client[:estate].find({:id => id}).first
+    chair = client[:estate].find({:id => id}, {'projection' => {'_id' => 0}}).first
     unless chair
       logger.error "Requested id's chair not found: #{id}"
       halt 404
@@ -567,7 +566,7 @@ class App < Sinatra::Base
         },
       ]
     }
-    estates = client[:estate].find(query).sort({:popularity => -1, :id => 1}).limit(LIMIT)
+    estates = client[:estate].find(query, {'projection' => {'_id' => 0}}).sort({:popularity => -1, :id => 1}).limit(LIMIT)
     { estates: estates.to_a.map { |e| camelize_keys_for_estate(e) } }.to_json
   end
 end
