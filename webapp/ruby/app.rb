@@ -267,7 +267,7 @@ class App < Sinatra::Base
       end
 
     session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
-      client[:chair].update_one(
+      chair = client[:chair].update_one(
         {
           :$and => [{:id => id}, {:stock => {:$gt => 0}}]
         },
@@ -275,6 +275,7 @@ class App < Sinatra::Base
           :$inc => {:stock => -1}
         }
       )
+      halt 404 if chair.to_a.empty?	      
     end
 
     status 200
@@ -388,7 +389,7 @@ class App < Sinatra::Base
 
     estates = client[:estate].find({:$and => search_queries}, {'projection' => {'_id' => 0}}).sort({:popularity => -1, :id => 1}).limit(per_page).skip(per_page * page)
     results = estates.to_a
-    if !results.empty
+    if !results.empty?
       results = results.map { |e| camelize_keys_for_estate(e) }
     end
     { count: estates.count(), estates: results }.to_json
@@ -509,7 +510,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    chair = client[:estate].find({:id => id}, {'projection' => {'_id' => 0}}).first
+    chair = client[:chair].find({:id => id}, {'projection' => {'_id' => 0}}).first
     unless chair
       logger.error "Requested id's chair not found: #{id}"
       halt 404
