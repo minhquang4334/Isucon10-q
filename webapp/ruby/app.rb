@@ -206,7 +206,7 @@ class App < Sinatra::Base
         logger.error "Invalid format perPage parameter: #{e.inspect}"
         halt 400
       end
-    chairs = client[:chair].find({:$and => search_queries}, {'projection' => {'_id' => 0}}).limit(per_page).skip(per_page * page)
+    chairs = client[:chair].find({:$and => search_queries}, {'projection' => {'_id' => 0}}).sort({:popularity => -1, :id => 1}).limit(per_page).skip(per_page * page)
     { count: chairs.count(), chairs: chairs.to_a }.to_json
   end
 
@@ -424,7 +424,7 @@ class App < Sinatra::Base
           }
         }
       }
-    }, {'projection' => {'_id' => 0}}).limit(NAZOTTE_LIMIT)
+    }, {'projection' => {'_id' => 0}}).sort({:popularity => -1, :id => 1}).limit(NAZOTTE_LIMIT)
 
     nazotte_estates = estates_in_polygon.to_a
     {
@@ -494,7 +494,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estate = client[:estate].find({:id => id}, {'projection' => {'_id' => 0}}).first
+    estate = client[:estate].find({:id => id}, {'projection' => {'_id' => 0}}).sort({:popularity => -1, :id => 1}).first
     unless estate
       logger.error "Requested id's estate not found: #{id}"
       halt 404
