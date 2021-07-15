@@ -24,11 +24,11 @@ class App < Sinatra::Base
   client = Mongo::Client.new([ '172.31.40.59:27017' ],
     user: 'isucon',
     password: 'isucon',
-    database: 'isuumo',
-    write_concern: {w: :majority, wtimeout: 1000}
+    database: 'isuumo'
+    # write_concern: {w: :majority, wtimeout: 1000}
   )
   client[:estate].indexes.create_one({ 'coor' => '2dsphere' })
-  session = client.start_session
+  # session = client.start_session
 
   helpers do
     def camelize_keys_for_estate(estate_hash)
@@ -228,7 +228,7 @@ class App < Sinatra::Base
       halt 400
     end
 
-    session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
+    # session.with_transaction(write_concern: {w: :majority}) do
       CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
         object = {
           :id => row[0].to_s,
@@ -247,7 +247,7 @@ class App < Sinatra::Base
         }
         client[:chair].insert_one(object)
       end
-    end
+    # end
 
     status 201
   end
@@ -266,7 +266,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
+    # session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
       chair = client[:chair].update_one(
         {
           :$and => [{:id => id}, {:stock => {:$gt => 0}}]
@@ -276,7 +276,7 @@ class App < Sinatra::Base
         }
       )
       halt 404 if chair.to_a.empty?	      
-    end
+    # end
 
     status 200
   end
@@ -451,7 +451,7 @@ class App < Sinatra::Base
       halt 400
     end
 
-    session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
+    # session.with_transaction(write_concern: {w: :majority}) do
       CSV.parse(params[:estates][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
         object = {
           :id => row[0].to_s,
@@ -469,7 +469,7 @@ class App < Sinatra::Base
         }
         client[:estate].insert_one(object)
       end
-    end
+    # end
 
     status 201
   end
