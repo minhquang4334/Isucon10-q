@@ -17,6 +17,7 @@ class App < Sinatra::Base
 
   configure do
     enable :logging
+    Mongo::QueryCache.enabled = true
   end
 
   set :add_charset, ['application/json']
@@ -51,8 +52,18 @@ class App < Sinatra::Base
   post '/initialize' do
     system("mongoimport --host 172.31.40.59 -u isucon -p isucon --db isuumo --collection chair --drop --jsonArray --file ../mongo/chair.json")
     system("mongoimport --host 172.31.40.59 -u isucon -p isucon --db isuumo --collection estate --drop --jsonArray --file ../mongo/estate.json")
-    client[:estate].indexes.create_one({ 'coor' => '2dsphere' })
-     
+    client[:estate].indexes.create_many([
+      { 'coor' => '2dsphere' },
+      { 'id' => 1 },
+      { 'popularity' => -1 },
+      { 'rent' => 1 }
+      ])
+    client[:chair].indexes.create_many([
+      { 'id' => 1 },
+      { 'price' => 1 },
+      { 'popularity' => -1 }
+    ])
+
     { language: 'ruby' }.to_json
   end
 
