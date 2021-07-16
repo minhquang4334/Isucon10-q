@@ -147,23 +147,23 @@ class App < Sinatra::Base
     search_queries = []
     query_params = []
 
-    if params[:priceRangeId] && params[:priceRangeId].size > 0
-      chair_price = chair_search_condition[:price][:ranges][params[:priceRangeId].to_i]
-      unless chair_price
-        logger.error "priceRangeID invalid: #{params[:priceRangeId]}"
-        halt 400
-      end
+    # if params[:priceRangeId] && params[:priceRangeId].size > 0
+    #   chair_price = chair_search_condition[:price][:ranges][params[:priceRangeId].to_i]
+    #   unless chair_price
+    #     logger.error "priceRangeID invalid: #{params[:priceRangeId]}"
+    #     halt 400
+    #   end
 
-      if chair_price[:min] != -1
-        search_queries << 'price >= ?'
-        query_params << chair_price[:min]
-      end
+    #   if chair_price[:min] != -1
+    #     search_queries << 'price >= ?'
+    #     query_params << chair_price[:min]
+    #   end
 
-      if chair_price[:max] != -1
-        search_queries << 'price < ?'
-        query_params << chair_price[:max]
-      end
-    end
+    #   if chair_price[:max] != -1
+    #     search_queries << 'price < ?'
+    #     query_params << chair_price[:max]
+    #   end
+    # end
 
     if params[:heightRangeId] && params[:heightRangeId].size > 0
       chair_height = chair_search_condition[:height][:ranges][params[:heightRangeId].to_i]
@@ -259,10 +259,11 @@ class App < Sinatra::Base
         halt 400
       end
 
-    sqlprefix = 'SELECT * FROM chair WHERE '
+    partition = params[:priceRangeId] ? "price_#{params[:priceRangeId]}" : "chair"
+    sqlprefix = "SELECT * FROM #{partition} WHERE "
     search_condition = search_queries.join(' AND ')
     limit_offset = " ORDER BY popularity DESC, id ASC LIMIT #{per_page} OFFSET #{per_page * page}" # XXX: mysql-cs-bind doesn't support escaping variables for limit and offset
-    count_prefix = 'SELECT COUNT(*) as count FROM chair WHERE '
+    count_prefix = "SELECT COUNT(*) as count FROM #{partition} WHERE "
 
     count = db.xquery("#{count_prefix}#{search_condition}", query_params).first[:count]
     chairs = db.xquery("#{sqlprefix}#{search_condition}#{limit_offset}", query_params).to_a
