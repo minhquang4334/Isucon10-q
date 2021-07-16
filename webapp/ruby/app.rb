@@ -53,15 +53,15 @@ class App < Sinatra::Base
     system("mongoimport --host 172.31.40.59 -u isucon -p isucon --db isuumo --collection chair --drop --jsonArray --file ../mongo/chair.json")
     system("mongoimport --host 172.31.40.59 -u isucon -p isucon --db isuumo --collection estate --drop --jsonArray --file ../mongo/estate.json")
     client[:estate].indexes.create_many([
-      { 'coor' => '2dsphere' },
-      { 'id' => 1 },
-      { 'popularity' => -1 },
-      { 'rent' => 1 }
+      { key: { 'coor' => '2dsphere' } },
+      { key: { 'id' => 1 }, unique: true },
+      { key: { 'popularity' => -1 } },
+      { key: { 'rent' => 1 } }
       ])
     client[:chair].indexes.create_many([
-      { 'id' => 1 },
-      { 'price' => 1 },
-      { 'popularity' => -1 }
+      { key: { 'id' => 1 }, unique: true },
+      { key: { 'price' => 1 } },
+      { key: { 'popularity' => -1 } }
     ])
 
     { language: 'ruby' }.to_json
