@@ -17,7 +17,6 @@ class App < Sinatra::Base
 
   configure do
     enable :logging
-    Mongo::QueryCache.enabled = true
   end
 
   set :add_charset, ['application/json']
@@ -238,7 +237,6 @@ class App < Sinatra::Base
       halt 400
     end
 
-    chairs = []
     CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
       object = {
         :id => row[0].to_i,
@@ -256,10 +254,8 @@ class App < Sinatra::Base
         :stock => row[12].to_i
       }
 
-      chairs << object
+      client[:chair].insert_one(object)
     end
-    client[:chair].insert_many(chairs)
-
     status 201
   end
 
@@ -460,7 +456,6 @@ class App < Sinatra::Base
       halt 400
     end
 
-    estates = []
     CSV.parse(params[:estates][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
       object = {
         :id => row[0].to_i,
@@ -476,9 +471,8 @@ class App < Sinatra::Base
         :popularity => row[11].to_i
       }
 
-      estates << object
+      client[:estate].insert_one(object)
     end
-    client[:estate].insert_many(estates)
 
     status 201
   end
