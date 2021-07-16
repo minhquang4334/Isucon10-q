@@ -230,19 +230,19 @@ class App < Sinatra::Base
     chairs = []
     CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
       object = {
-        :id => row[0],
+        :id => row[0].to_i,
         :name => row[1].to_s,
         :description => row[2].to_s,
         :thumbnail => row[3].to_s,
-        :price => row[4],
-        :height => row[5],
-        :width => row[6],
-        :depth => row[7],
+        :price => row[4].to_i,
+        :height => row[5].to_i,
+        :width => row[6].to_i,
+        :depth => row[7].to_i,
         :color => row[8].to_s,
         :features => row[9].to_s,
         :kind => row[10].to_s,
-        :popularity => row[11],
-        :stock => row[12]
+        :popularity => row[11].to_i,
+        :stock => row[12].to_i
       }
 
       chairs << object
@@ -452,17 +452,17 @@ class App < Sinatra::Base
     estates = []
     CSV.parse(params[:estates][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
       object = {
-        :id => row[0],
+        :id => row[0].to_i,
         :name => row[1].to_s,
         :description => row[2].to_s,
         :thumbnail => row[3].to_s,
         :address => row[4].to_s,
-        :coor => [row[6], row[5]],
-        :rent => row[7],
-        :door_height => row[8],
-        :door_width => row[9],
+        :coor => [row[6].to_f, row[5].to_f],
+        :rent => row[7].to_i,
+        :door_height => row[8].to_i,
+        :door_width => row[9].to_i,
         :features => row[10].to_s,
-        :popularity => row[11]
+        :popularity => row[11].to_i
       }
 
       estates << object
