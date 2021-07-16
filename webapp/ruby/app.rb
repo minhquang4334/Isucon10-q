@@ -470,21 +470,12 @@ class App < Sinatra::Base
       },
     }
 
-    sql = 'SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC'
-    estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
-
-    estate_ids = estates.map { |estate| estate[:id] }.join(',')
-    if estate_ids.empty?
-      nazotte_estates = []
-    else
-      points = estates.map { |estate| "'POINT(%f %f)'" % estate.values_at(:latitude, :longitude) }
-      coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
-      text = "CONCAT('POINT(', latitude, ' ', longitude, ')')"
-      sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s)) as is_geom_contain FROM estate WHERE id IN %s LIMIT %i' % [coordinates_to_text, text, "(#{estate_ids})", NAZOTTE_LIMIT]
-      
-      estates_in_polygon = db.xquery(sql)
-      nazotte_estates = estates_in_polygon.select { |e| e[:is_geom_contain] }
-    end
+    coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
+    text = "CONCAT('POINT(', latitude, ' ', longitude, ')')"
+    sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s)) as is_geom_contain FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC LIMIT %i' % [coordinates_to_text, text, NAZOTTE_LIMIT]
+    
+    estates_in_polygon = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
+    nazotte_estates = estates_in_polygon.select { |e| e[:is_geom_contain] }
 
     {
       estates: nazotte_estates.map { |e| camelize_keys_for_estate(e) },
