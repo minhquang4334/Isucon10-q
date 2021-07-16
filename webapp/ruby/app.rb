@@ -476,16 +476,17 @@ class App < Sinatra::Base
       point = "'POINT(%f %f)'" % estate.values_at(:latitude, :longitude)
       coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
       sql = 'SELECT ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s))' % [coordinates_to_text, point]
-      e = db.xquery(sql, estate[:id]).first
-      if e == 1
-        estates_in_polygon << e
+      e = db.xquery(sql).first
+      if e.values[0] == 1
+        estates_in_polygon << estate
       end
+
+      break if estates_in_polygon.size == NAZOTTE_LIMIT
     end
 
-    nazotte_estates = estates_in_polygon.take(NAZOTTE_LIMIT)
     {
-      estates: nazotte_estates.map { |e| camelize_keys_for_estate(e) },
-      count: nazotte_estates.size,
+      estates: estates_in_polygon.map { |e| camelize_keys_for_estate(e) },
+      count: estates_in_polygon.size,
     }.to_json
   end
 
