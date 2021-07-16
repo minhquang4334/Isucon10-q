@@ -230,19 +230,19 @@ class App < Sinatra::Base
     chairs = []
     CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
       object = {
-        :id => row[0].to_s,
+        :id => row[0],
         :name => row[1].to_s,
         :description => row[2].to_s,
         :thumbnail => row[3].to_s,
-        :price => row[4].to_s,
-        :height => row[5].to_s,
-        :width => row[6].to_s,
-        :depth => row[7].to_s,
+        :price => row[4],
+        :height => row[5],
+        :width => row[6],
+        :depth => row[7],
         :color => row[8].to_s,
         :features => row[9].to_s,
         :kind => row[10].to_s,
-        :popularity => row[11].to_s,
-        :stock => row[12].to_s
+        :popularity => row[11],
+        :stock => row[12]
       }
 
       chairs << object
@@ -266,17 +266,15 @@ class App < Sinatra::Base
         halt 400
       end
 
-    # session.with_transaction(write_concern: {w: :majority}, read: {mode: :primary}) do
-      chair = client[:chair].update_one(
-        {
-          :$and => [{:id => id}, {:stock => {:$gt => 0}}]
-        },
-        {
-          :$inc => {:stock => -1}
-        }
-      )
-      halt 404 if chair.to_a.empty?	      
-    # end
+    chair = client[:chair].update_one(
+      {
+        :$and => [{:id => id}, {:stock => {:$gt => 0}}]
+      },
+      {
+        :$inc => {:stock => -1}
+      }
+    )
+    halt 404 if chair.to_a.empty?	      
 
     status 200
   end
@@ -454,18 +452,17 @@ class App < Sinatra::Base
     estates = []
     CSV.parse(params[:estates][:tempfile].read, skip_blanks: true, encoding: 'UTF-8') do |row|
       object = {
-        :id => row[0].to_s,
+        :id => row[0],
         :name => row[1].to_s,
         :description => row[2].to_s,
         :thumbnail => row[3].to_s,
         :address => row[4].to_s,
-        :latitude => row[5].to_s,
-        :longitude => row[6].to_s,
-        :rent => row[7].to_s,
-        :door_height => row[8].to_s,
-        :door_width => row[9].to_s,
+        :coor => [row[6], row[5]],
+        :rent => row[7],
+        :door_height => row[8],
+        :door_width => row[9],
         :features => row[10].to_s,
-        :popularity => row[11].to_s
+        :popularity => row[11]
       }
 
       estates << object
