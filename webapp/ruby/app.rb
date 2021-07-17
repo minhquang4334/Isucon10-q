@@ -300,12 +300,14 @@ class App < Sinatra::Base
       logger.error 'Failed to get form file'
       halt 400
     end
+    rows = []
+    CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true) do |row|
+      rows << "(%s, '%s', '%s', '%s', %s, %s, %s, %s, '%s', '%s', '%s', %s, %s)"  % row.map!(&:to_s)
+    end
 
     transaction('post_api_chair') do
-      CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true) do |row|
-        sql = 'INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        db.xquery(sql, *row.map(&:to_s))
-      end
+      sql = "INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES #{rows.join(',')}"
+      db.xquery(sql)
     end
 
     status 201
@@ -510,12 +512,13 @@ class App < Sinatra::Base
       logger.error 'Failed to get form file'
       halt 400
     end
-
+    rows  = []
+    CSV.parse(params[:estates][:tempfile].read, skip_blanks: true) do |row|
+      rows << "(%s, '%s', '%s', '%s', '%s', %s, %s, %s, %s, %s, '%s', %s)" % row.map!(&:to_s)
+    end
     transaction('post_api_estate') do
-      CSV.parse(params[:estates][:tempfile].read, skip_blanks: true) do |row|
-        sql = 'INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        db.xquery(sql, *row.map(&:to_s))
-      end
+      sql = "INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES #{rows.join(',')}"
+      db.xquery(sql)
     end
 
     status 201
