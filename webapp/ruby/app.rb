@@ -470,27 +470,29 @@ class App < Sinatra::Base
         latitude: latitudes.max,
       },
     }
-
     sql = 'SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC'
     estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
 
-    estates_in_polygon = []
-    estates.each do |estate|
-      point = "'POINT(%f %f)'" % estate.values_at(:latitude, :longitude)
+    estate_ids = estates.map { |estate| estate[:id] }.join(',')
+    unless estate_ids.empty?
       coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
-      sql = 'SELECT ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s))' % [coordinates_to_text, point]
-      e = db.xquery(sql).first
-      if e.values[0] == 1
-        estates_in_polygon << estate
+      text = "CONCAT('POINT(', latitude, ' ', longitude, ')')"
+      sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s)) as is_geom_contain from estate where id IN %s ORDER BY popularity DESC, id ASC' % [coordinates_to_text, text, "(#{estate_ids})"]
+      
+      search_nazotte_estates = db.xquery(sql)
+      ne = search_nazotte_estates.select { |e| e[:is_geom_contain] == 1 }.take(NAZOTTE_LIMIT)
+      nazotte_estates = ne.map do |e|
+        camelize_keys_for_estate(e)
+        e.delete(:is_geom_contain)
+        e
       end
-
-      break if estates_in_polygon.size == NAZOTTE_LIMIT
+    else
+      nazotte_estates = []
     end
-
     {
-      estates: estates_in_polygon.map { |e| camelize_keys_for_estate(e) },
-      count: estates_in_polygon.size,
-    }.to_json
+      estates: nazotte_estates,
+      count: nazotte_estates.size,
+    }.to_json    
   end
 
   get '/api/estate/:id' do
