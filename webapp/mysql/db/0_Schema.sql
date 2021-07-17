@@ -21,37 +21,18 @@ CREATE TABLE isuumo.estate
     features    VARCHAR(64)         NOT NULL,
     popularity  INTEGER             NOT NULL,
     PRIMARY KEY (id, rent),
-    -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L357-L370
-    -- 複数index効かせられないMySQLでは種類ごとの同値(=)検索で引っ掛けるのがORDER BYも効かせられる余地があってよい
-    -- ORDER BY popularity DESC, id ASC LIMIT #{per_page} OFFSET #{per_page * page} があるので
-    -- INDEX idx_rent_t (rent_t, popularity DESC) にしてORDER BY LIMIT optimizationも狙うべきだった(MySQL 8限定)
-    --
-    -- INDEX idx_rent_t (rent_t),
-    -- INDEX idx_door_height_t (door_height_t),
-    -- INDEX idx_door_width_t (door_width_t),
-    --
-    -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L348
-    -- SELECT * FROM estate ORDER BY rent ASC, id ASC LIMIT #{LIMIT}
-    -- rentのORDER BY LIMIT optimization狙い
+    point       geometry GENERATED ALWAYS AS
+        (POINT(latitude, longitude)) STORED NOT NULL,
     INDEX idx_rent_id (rent ASC, id ASC),
-
-    -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L585
-    INDEX idx_popularity (popularity DESC, id ASC)
-
-    -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L442
-    -- SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC
-    -- MySQではこのクエリにこのindexを効率よく効かせるのはむずかしい
-    -- geometry (point)型のカラム足してspatial index試したかったね
-    -- memo: https://qiita.com/qyen/items/bc4a7be812253c2be9f9
-    -- INDEX idx_latitude_longitude (latitude, longitude),
-    -- INDEX idx_longitude_latitude (longitude, latitude)
-)
-PARTITION BY RANGE(rent)  (
-    PARTITION rent_0 VALUES LESS THAN (50000),
-    PARTITION rent_1 VALUES LESS THAN (100000),
-    PARTITION rent_2 VALUES LESS THAN (150000),
-    PARTITION rent_3 VALUES LESS THAN MAXVALUE
+    INDEX idx_popularity (popularity DESC, id ASC),
+    SPATIAL INDEX(point)
 );
+#PARTITION BY RANGE(rent)  (
+#    PARTITION rent_0 VALUES LESS THAN (50000),
+#    PARTITION rent_1 VALUES LESS THAN (100000),
+#    PARTITION rent_2 VALUES LESS THAN (150000),
+#    PARTITION rent_3 VALUES LESS THAN MAXVALUE
+#);
 
 CREATE TABLE isuumo.chair
 (

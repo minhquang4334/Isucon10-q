@@ -9,6 +9,7 @@ logger = Logger.new(STDOUT)
 class App < Sinatra::Base
   LIMIT = 20
   NAZOTTE_LIMIT = 50
+  ESTATE_COLUMN = "id, thumbnail, name, description, latitude, longitude, address, rent, door_height, door_width, features, popularity"
   redis = Redis.new host:"127.0.0.1", port: "6379"
 
   chair_cond = redis.get(:chair_search_condition);
@@ -38,7 +39,7 @@ class App < Sinatra::Base
   helpers do
     def db_info
       {
-        host: ENV.fetch('MYSQL_HOST', '127.0.0.1'),
+        host: '172.31.33.248',
         port: ENV.fetch('MYSQL_PORT', '3306'),
         username: ENV.fetch('MYSQL_USER', 'isucon'),
         password: ENV.fetch('MYSQL_PASS', 'isucon'),
@@ -104,6 +105,7 @@ class App < Sinatra::Base
       estate_hash.tap do |e|
         e[:doorHeight] = e.delete(:door_height)
         e[:doorWidth] = e.delete(:door_width)
+	e.delete(:point)
       end
     end
 
@@ -253,7 +255,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    per_page =
+    per_page = 
       begin
         Integer(params[:perPage], 10)
       rescue ArgumentError => e
@@ -434,10 +436,10 @@ class App < Sinatra::Base
         halt 400
       end
 
-    sqlprefix = "SELECT * FROM estate #{partition} WHERE "
+    sqlprefix = "SELECT * FROM estate WHERE "
     search_condition = search_queries.join(' AND ')
     limit_offset = " ORDER BY popularity DESC, id ASC LIMIT #{per_page} OFFSET #{per_page * page}" # XXX:
-    count_prefix = "SELECT COUNT(*) as count FROM estate #{partition} WHERE "
+    count_prefix = "SELECT COUNT(*) as count FROM estate WHERE "
 
     count = db.xquery("#{count_prefix}#{search_condition}", query_params).first[:count]
     estates = db.xquery("#{sqlprefix}#{search_condition}#{limit_offset}", query_params).to_a
@@ -458,35 +460,10 @@ class App < Sinatra::Base
       halt 400
     end
 
-    longitudes = coordinates.map { |c| c[:longitude] }
-    latitudes = coordinates.map { |c| c[:latitude] }
-    bounding_box = {
-      top_left: {
-        longitude: longitudes.min,
-        latitude: latitudes.min,
-      },
-      bottom_right: {
-        longitude: longitudes.max,
-        latitude: latitudes.max,
-      },
-    }
-
-    sql = 'SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC'
-    estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
-
-    estates_in_polygon = []
-    estates.each do |estate|
-      point = "'POINT(%f %f)'" % estate.values_at(:latitude, :longitude)
-      coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
-      sql = 'SELECT ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s))' % [coordinates_to_text, point]
-      e = db.xquery(sql).first
-      if e.values[0] == 1
-        estates_in_polygon << estate
-      end
-
-      break if estates_in_polygon.size == NAZOTTE_LIMIT
-    end
-
+    coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
+    sql = 'SELECT %s FROM estate where ST_Contains(ST_PolygonFromText(%s), point) ORDER BY popularity DESC, id ASC LIMIT %i' % [ESTATE_COLUMN, coordinates_to_text, NAZOTTE_LIMIT]
+    
+    estates_in_polygon = db.xquery(sql)
     {
       estates: estates_in_polygon.map { |e| camelize_keys_for_estate(e) },
       count: estates_in_polygon.size,
