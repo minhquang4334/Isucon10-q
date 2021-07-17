@@ -403,6 +403,7 @@ class App < Sinatra::Base
         search_queries << 'rent < ?'
         query_params << rent[:max]
       end
+      partition = "PARTITION(rent_#{params[:rentRangeId]})"
     end
 
     if params[:features] && params[:features].size > 0
@@ -433,10 +434,10 @@ class App < Sinatra::Base
         halt 400
       end
 
-    sqlprefix = 'SELECT * FROM estate WHERE '
+    sqlprefix = "SELECT * FROM estate #{partition} WHERE "
     search_condition = search_queries.join(' AND ')
     limit_offset = " ORDER BY popularity DESC, id ASC LIMIT #{per_page} OFFSET #{per_page * page}" # XXX:
-    count_prefix = 'SELECT COUNT(*) as count FROM estate WHERE '
+    count_prefix = "SELECT COUNT(*) as count FROM estate #{partition} WHERE "
 
     count = db.xquery("#{count_prefix}#{search_condition}", query_params).first[:count]
     estates = db.xquery("#{sqlprefix}#{search_condition}#{limit_offset}", query_params).to_a
