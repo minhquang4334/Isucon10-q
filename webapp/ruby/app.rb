@@ -470,24 +470,16 @@ class App < Sinatra::Base
         latitude: latitudes.max,
       },
     }
-    sql = 'SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC'
-    estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
-
-    estate_ids = estates.map { |estate| estate[:id] }.join(',')
-    unless estate_ids.empty?
-      coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
-      text = "CONCAT('POINT(', latitude, ' ', longitude, ')')"
-      sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s)) as is_geom_contain from estate where id IN %s ORDER BY popularity DESC, id ASC' % [coordinates_to_text, text, "(#{estate_ids})"]
-      
-      search_nazotte_estates = db.xquery(sql)
-      ne = search_nazotte_estates.select { |e| e[:is_geom_contain] == 1 }.take(NAZOTTE_LIMIT)
-      nazotte_estates = ne.map do |e|
-        camelize_keys_for_estate(e)
-        e.delete(:is_geom_contain)
-        e
-      end
-    else
-      nazotte_estates = []
+    coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
+    text = "CONCAT('POINT(', latitude, ' ', longitude, ')')"
+    sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s)) as is_geom_contain from estate where latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC' % [coordinates_to_text, text]
+    
+    search_nazotte_estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
+    ne = search_nazotte_estates.select { |e| e[:is_geom_contain] == 1 }.take(NAZOTTE_LIMIT)
+    nazotte_estates = ne.map do |e|
+      camelize_keys_for_estate(e)
+      e.delete(:is_geom_contain)
+      e
     end
     {
       estates: nazotte_estates,
