@@ -33,10 +33,10 @@ CREATE TABLE isuumo.estate
     -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L348
     -- SELECT * FROM estate ORDER BY rent ASC, id ASC LIMIT #{LIMIT}
     -- rentのORDER BY LIMIT optimization狙い
-    INDEX idx_rent (rent),
+    INDEX idx_rent_id (rent ASC, id ASC),
 
     -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L585
-    INDEX idx_popularity (popularity DESC)
+    INDEX idx_popularity (popularity DESC, id ASC)
 
     -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L442
     -- SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC
@@ -70,7 +70,7 @@ CREATE TABLE isuumo.chair
     stock       INTEGER         NOT NULL,
 
     PRIMARY KEY (id, price),
-    INDEX idx_price (price),
+    INDEX idx_price_id (price ASC, id ASC),
 
     -- 不要
     -- INDEX idx_depth (depth),
@@ -80,9 +80,10 @@ CREATE TABLE isuumo.chair
     -- INDEX idx_color (color),
     -- INDEX idx_kind (kind),
     --
-    INDEX idx_color_popularity (color, popularity DESC),
-    INDEX idx_kind_popularity (kind, popularity DESC)
-
+    -- INDEX idx_color_popularity (color, popularity DESC),
+    -- INDEX idx_kind_popularity (kind, popularity DESC)
+	
+    INDEX idx_popularity_id (popularity DESC, id ASC)
     -- 常に他の検索条件との複合で必要なので単体では不要
     -- INDEX idx_popularity (popularity),
 
