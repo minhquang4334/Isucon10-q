@@ -3,26 +3,30 @@ require 'mysql2'
 require 'mysql2-cs-bind'
 require 'csv'
 require 'logger'
-require 'redis'
+#require 'redis'
 logger = Logger.new(STDOUT)
 
 class App < Sinatra::Base
   LIMIT = 20
   NAZOTTE_LIMIT = 50
-  redis = Redis.new host:"127.0.0.1", port: "6379"
+  ESTATE_COLUMN = "id, thumbnail, name, description, latitude, longitude, address, rent, door_height as doorHeight, door_width as doorWidth, features, popularity"
+  CHAIR_COLUMN = ""
+  #redis = Redis.new host:"127.0.0.1", port: "6379"
 
-  chair_cond = redis.get(:chair_search_condition);
-  if !chair_cond
-    chair_cond = File.read('../fixture/chair_condition.json')
-    redis.set(:chair_search_condition, chair_cond)
-  end
+ # chair_cond = redis.get(:chair_search_condition);
+  #if !chair_cond
+   # chair_cond = File.read('../fixture/chair_condition.json')
+   # redis.set(:chair_search_condition, chair_cond)
+  #end
+  chair_cond = File.read('../fixture/chair_condition.json')
   chair_search_condition = JSON.parse(chair_cond, symbolize_names: true)
 
-  estate_cond = redis.get(:estate_search_condition)
-  if !estate_cond
-    estate_cond = File.read('../fixture/estate_condition.json')
-    redis.set(:estate_search_condition, estate_cond)
-  end
+  #estate_cond = redis.get(:estate_search_condition)
+  #if !estate_cond
+    #estate_cond = File.read('../fixture/estate_condition.json')
+    #redis.set(:estate_search_condition, estate_cond)
+  #end
+  estate_cond = File.read('../fixture/estate_condition.json')
   estate_search_condition = JSON.parse(estate_cond, symbolize_names: true)
   configure :development do
     require 'sinatra/reloader'
@@ -98,13 +102,6 @@ class App < Sinatra::Base
 
     def in_transaction?(name)
       Thread.current[:db_transaction] && Thread.current[:db_transaction][name] == :open
-    end
-
-    def camelize_keys_for_estate(estate_hash)
-      estate_hash.tap do |e|
-        e[:doorHeight] = e.delete(:door_height)
-        e[:doorWidth] = e.delete(:door_width)
-      end
     end
 
     def body_json_params
@@ -300,12 +297,14 @@ class App < Sinatra::Base
       logger.error 'Failed to get form file'
       halt 400
     end
+    rows = []
+    CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true) do |row|
+      rows << "(%s, '%s', '%s', '%s', %s, %s, %s, %s, '%s', '%s', '%s', %s, %s)"  % row.map!(&:to_s)
+    end
 
     transaction('post_api_chair') do
-      CSV.parse(params[:chairs][:tempfile].read, skip_blanks: true) do |row|
-        sql = 'INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        db.xquery(sql, *row.map(&:to_s))
-      end
+      sql = "INSERT INTO chair(id, name, description, thumbnail, price, height, width, depth, color, features, kind, popularity, stock) VALUES #{rows.join(',')}"
+      db.xquery(sql)
     end
 
     status 201
@@ -342,9 +341,9 @@ class App < Sinatra::Base
   end
 
   get '/api/estate/low_priced' do
-    sql = "SELECT * FROM estate ORDER BY rent ASC, id ASC LIMIT #{LIMIT}" # XXX:
+    sql = "SELECT #{ESTATE_COLUMN} FROM estate ORDER BY rent ASC, id ASC LIMIT #{LIMIT}" # XXX:
     estates = db.xquery(sql).to_a
-    { estates: estates.map { |e| camelize_keys_for_estate(e) } }.to_json
+    {estates: estates}.to_json
   end
 
   get '/api/estate/search' do
@@ -434,7 +433,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    sqlprefix = "SELECT * FROM estate #{partition} WHERE "
+    sqlprefix = "SELECT #{ESTATE_COLUMN} FROM estate #{partition} WHERE "
     search_condition = search_queries.join(' AND ')
     limit_offset = " ORDER BY popularity DESC, id ASC LIMIT #{per_page} OFFSET #{per_page * page}" # XXX:
     count_prefix = "SELECT COUNT(*) as count FROM estate #{partition} WHERE "
@@ -442,7 +441,7 @@ class App < Sinatra::Base
     count = db.xquery("#{count_prefix}#{search_condition}", query_params).first[:count]
     estates = db.xquery("#{sqlprefix}#{search_condition}#{limit_offset}", query_params).to_a
 
-    { count: count, estates: estates.map { |e| camelize_keys_for_estate(e) } }.to_json
+    { count: count, estates: estates }.to_json
   end
 
   post '/api/estate/nazotte' do
@@ -472,12 +471,11 @@ class App < Sinatra::Base
     }
     coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
     text = "CONCAT('POINT(', latitude, ' ', longitude, ')')"
-    sql = 'SELECT *, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s)) as is_geom_contain from estate where latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC' % [coordinates_to_text, text]
+    sql = 'SELECT %s, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s)) as is_geom_contain from estate where latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC' % [ESTATE_COLUMN, coordinates_to_text, text]
     
     search_nazotte_estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
     ne = search_nazotte_estates.select { |e| e[:is_geom_contain] == 1 }.take(NAZOTTE_LIMIT)
     nazotte_estates = ne.map do |e|
-      camelize_keys_for_estate(e)
       e.delete(:is_geom_contain)
       e
     end
@@ -496,13 +494,13 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estate = db.xquery('SELECT * FROM estate WHERE id = ?', id).first
+    estate = db.xquery("SELECT #{ESTATE_COLUMN} FROM estate WHERE id = ?", id).first
     unless estate
       logger.info "Requested id's estate not found: #{id}"
       halt 404
     end
 
-    camelize_keys_for_estate(estate).to_json
+    estate.to_json
   end
 
   post '/api/estate' do
@@ -510,12 +508,13 @@ class App < Sinatra::Base
       logger.error 'Failed to get form file'
       halt 400
     end
-
+    rows  = []
+    CSV.parse(params[:estates][:tempfile].read, skip_blanks: true) do |row|
+      rows << "(%s, '%s', '%s', '%s', '%s', %s, %s, %s, %s, %s, '%s', %s)" % row.map!(&:to_s)
+    end
     transaction('post_api_estate') do
-      CSV.parse(params[:estates][:tempfile].read, skip_blanks: true) do |row|
-        sql = 'INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        db.xquery(sql, *row.map(&:to_s))
-      end
+      sql = "INSERT INTO estate(id, name, description, thumbnail, address, latitude, longitude, rent, door_height, door_width, features, popularity) VALUES #{rows.join(',')}"
+      db.xquery(sql)
     end
 
     status 201
@@ -567,9 +566,9 @@ class App < Sinatra::Base
     h = chair[:height]
     d = chair[:depth]
 
-    sql = "SELECT * FROM estate WHERE (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) ORDER BY popularity DESC, id ASC LIMIT #{LIMIT}" # XXX:
+    sql = "SELECT #{ESTATE_COLUMN} FROM estate WHERE (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) ORDER BY popularity DESC, id ASC LIMIT #{LIMIT}" # XXX:
     estates = db.xquery(sql, w, h, w, d, h, w, h, d, d, w, d, h).to_a
 
-    { estates: estates.map { |e| camelize_keys_for_estate(e) } }.to_json
+    {estates: estates}.to_json
   end
 end
