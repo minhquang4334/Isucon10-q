@@ -36,15 +36,15 @@ CREATE TABLE isuumo.estate
     INDEX idx_rent_id (rent ASC, id ASC),
 
     -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L585
-    INDEX idx_popularity (popularity DESC, id ASC)
+    INDEX idx_popularity (popularity DESC, id ASC),
 
     -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L442
     -- SELECT * FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC
     -- MySQではこのクエリにこのindexを効率よく効かせるのはむずかしい
     -- geometry (point)型のカラム足してspatial index試したかったね
     -- memo: https://qiita.com/qyen/items/bc4a7be812253c2be9f9
-    -- INDEX idx_latitude_longitude (latitude, longitude),
-    -- INDEX idx_longitude_latitude (longitude, latitude)
+    INDEX idx_latitude_longitude (latitude, longitude),
+    INDEX idx_longitude_latitude (longitude, latitude)
 )
 PARTITION BY RANGE(rent)  (
     PARTITION rent_0 VALUES LESS THAN (50000),
