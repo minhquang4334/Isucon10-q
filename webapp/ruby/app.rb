@@ -3,7 +3,7 @@ require 'mysql2'
 require 'mysql2-cs-bind'
 require 'csv'
 require 'logger'
-require 'redis'
+#require 'redis'
 logger = Logger.new(STDOUT)
 
 class App < Sinatra::Base
@@ -11,20 +11,22 @@ class App < Sinatra::Base
   NAZOTTE_LIMIT = 50
   ESTATE_COLUMN = "id, thumbnail, name, description, latitude, longitude, address, rent, door_height as doorHeight, door_width as doorWidth, features, popularity"
   CHAIR_COLUMN = ""
-  redis = Redis.new host:"127.0.0.1", port: "6379"
+  #redis = Redis.new host:"127.0.0.1", port: "6379"
 
-  chair_cond = redis.get(:chair_search_condition);
-  if !chair_cond
-    chair_cond = File.read('../fixture/chair_condition.json')
-    redis.set(:chair_search_condition, chair_cond)
-  end
+ # chair_cond = redis.get(:chair_search_condition);
+  #if !chair_cond
+   # chair_cond = File.read('../fixture/chair_condition.json')
+   # redis.set(:chair_search_condition, chair_cond)
+  #end
+  chair_cond = File.read('../fixture/chair_condition.json')
   chair_search_condition = JSON.parse(chair_cond, symbolize_names: true)
 
-  estate_cond = redis.get(:estate_search_condition)
-  if !estate_cond
-    estate_cond = File.read('../fixture/estate_condition.json')
-    redis.set(:estate_search_condition, estate_cond)
-  end
+  #estate_cond = redis.get(:estate_search_condition)
+  #if !estate_cond
+    #estate_cond = File.read('../fixture/estate_condition.json')
+    #redis.set(:estate_search_condition, estate_cond)
+  #end
+  estate_cond = File.read('../fixture/estate_condition.json')
   estate_search_condition = JSON.parse(estate_cond, symbolize_names: true)
   configure :development do
     require 'sinatra/reloader'
@@ -341,7 +343,7 @@ class App < Sinatra::Base
   get '/api/estate/low_priced' do
     sql = "SELECT #{ESTATE_COLUMN} FROM estate ORDER BY rent ASC, id ASC LIMIT #{LIMIT}" # XXX:
     estates = db.xquery(sql).to_a
-    estates.to_json
+    {estates: estates}.to_json
   end
 
   get '/api/estate/search' do
@@ -567,6 +569,6 @@ class App < Sinatra::Base
     sql = "SELECT #{ESTATE_COLUMN} FROM estate WHERE (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) OR (door_width >= ? AND door_height >= ?) ORDER BY popularity DESC, id ASC LIMIT #{LIMIT}" # XXX:
     estates = db.xquery(sql, w, h, w, d, h, w, h, d, d, w, d, h).to_a
 
-    estates.to_json
+    {estates: estates}.to_json
   end
 end
