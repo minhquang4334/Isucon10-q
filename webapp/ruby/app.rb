@@ -470,19 +470,12 @@ class App < Sinatra::Base
       },
     }
     coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
-    text = "CONCAT('POINT(', latitude, ' ', longitude, ')')"
-    sql = 'SELECT %s, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s)) as is_geom_contain from estate where latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC' % [ESTATE_COLUMN, coordinates_to_text, text]
-    
-    search_nazotte_estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
-    ne = search_nazotte_estates.select { |e| e[:is_geom_contain] == 1 }.take(NAZOTTE_LIMIT)
-    nazotte_estates = ne.map do |e|
-      e.delete(:is_geom_contain)
-      e
-    end
+    sql = "SELECT #{ESTATE_COLUMN} FROM estate WHERE latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? AND ST_Contains(ST_PolygonFromText(#{coordinates_to_text}), POINT(latitude, longitude)) ORDER BY popularity DESC, id ASC LIMIT #{NAZOTTE_LIMIT}"
+    nazotte_estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude]).to_a
     {
       estates: nazotte_estates,
       count: nazotte_estates.size,
-    }.to_json    
+    }.to_json
   end
 
   get '/api/estate/:id' do
@@ -534,8 +527,8 @@ class App < Sinatra::Base
         halt 400
       end
 
-    estate = db.xquery('SELECT * FROM estate WHERE id = ?', id).first
-    unless estate
+    estate_id = db.xquery('SELECT id FROM estate WHERE id = ?', id).first
+    unless estate_id
       logger.error "Requested id's estate not found: #{id}"
       halt 404
     end
