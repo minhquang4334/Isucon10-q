@@ -402,7 +402,6 @@ class App < Sinatra::Base
         search_queries << 'rent < ?'
         query_params << rent[:max]
       end
-      partition = "PARTITION(rent_#{params[:rentRangeId]})"
     end
 
     if params[:features] && params[:features].size > 0
@@ -433,7 +432,7 @@ class App < Sinatra::Base
         halt 400
       end
 
-    sqlprefix = "SELECT #{ESTATE_COLUMN} FROM estate #{partition} WHERE "
+    sqlprefix = "SELECT #{ESTATE_COLUMN} FROM estate WHERE "
     search_condition = search_queries.join(' AND ')
     limit_offset = " ORDER BY popularity DESC, id ASC LIMIT #{per_page} OFFSET #{per_page * page}" # XXX:
     count_prefix = "SELECT COUNT(*) as count FROM estate WHERE "
@@ -456,10 +455,15 @@ class App < Sinatra::Base
       logger.error "post search estate nazotte failed: coordinates are empty"
       halt 400
     end
-
     coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
-    sql = "SELECT #{ESTATE_COLUMN} FROM estate WHERE ST_Contains(ST_PolygonFromText(#{coordinates_to_text}), g) ORDER BY popularity DESC, id ASC LIMIT #{NAZOTTE_LIMIT}"
-    nazotte_estates = db.xquery(sql).to_a
+    sql = 'SELECT %s, ST_Contains(ST_PolygonFromText(%s), g) as is_geom_contain from estate where latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC' % [ESTATE_COLUMN, coordinates_to_text]
+
+    search_nazotte_estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
+    ne = search_nazotte_estates.select { |e| e[:is_geom_contain] == 1 }.take(NAZOTTE_LIMIT)
+    nazotte_estates = ne.map do |e|
+      e.delete(:is_geom_contain)
+      e
+    end
     {
       estates: nazotte_estates,
       count: nazotte_estates.size,
