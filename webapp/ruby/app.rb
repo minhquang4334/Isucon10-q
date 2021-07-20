@@ -436,7 +436,7 @@ class App < Sinatra::Base
     sqlprefix = "SELECT #{ESTATE_COLUMN} FROM estate #{partition} WHERE "
     search_condition = search_queries.join(' AND ')
     limit_offset = " ORDER BY popularity DESC, id ASC LIMIT #{per_page} OFFSET #{per_page * page}" # XXX:
-    count_prefix = "SELECT COUNT(*) as count FROM estate #{partition} WHERE "
+    count_prefix = "SELECT COUNT(*) as count FROM estate WHERE "
 
     count = db.xquery("#{count_prefix}#{search_condition}", query_params).first[:count]
     estates = db.xquery("#{sqlprefix}#{search_condition}#{limit_offset}", query_params).to_a
@@ -457,28 +457,9 @@ class App < Sinatra::Base
       halt 400
     end
 
-    longitudes = coordinates.map { |c| c[:longitude] }
-    latitudes = coordinates.map { |c| c[:latitude] }
-    bounding_box = {
-      top_left: {
-        longitude: longitudes.min,
-        latitude: latitudes.min,
-      },
-      bottom_right: {
-        longitude: longitudes.max,
-        latitude: latitudes.max,
-      },
-    }
     coordinates_to_text = "'POLYGON((%s))'" % coordinates.map { |c| '%f %f' % c.values_at(:latitude, :longitude) }.join(',')
-    text = "CONCAT('POINT(', latitude, ' ', longitude, ')')"
-    sql = 'SELECT %s, ST_Contains(ST_PolygonFromText(%s), ST_GeomFromText(%s)) as is_geom_contain from estate where latitude <= ? AND latitude >= ? AND longitude <= ? AND longitude >= ? ORDER BY popularity DESC, id ASC' % [ESTATE_COLUMN, coordinates_to_text, text]
-
-    search_nazotte_estates = db.xquery(sql, bounding_box[:bottom_right][:latitude], bounding_box[:top_left][:latitude], bounding_box[:bottom_right][:longitude], bounding_box[:top_left][:longitude])
-    ne = search_nazotte_estates.select { |e| e[:is_geom_contain] == 1 }.take(NAZOTTE_LIMIT)
-    nazotte_estates = ne.map do |e|
-      e.delete(:is_geom_contain)
-      e
-    end
+    sql = "SELECT #{ESTATE_COLUMN} FROM estate WHERE ST_Contains(ST_PolygonFromText(#{coordinates_to_text}), g) ORDER BY popularity DESC, id ASC LIMIT #{NAZOTTE_LIMIT}"
+    nazotte_estates = db.xquery(sql).to_a
     {
       estates: nazotte_estates,
       count: nazotte_estates.size,

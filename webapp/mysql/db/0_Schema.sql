@@ -20,7 +20,9 @@ CREATE TABLE isuumo.estate
     door_width  INTEGER             NOT NULL,
     features    VARCHAR(64)         NOT NULL,
     popularity  INTEGER             NOT NULL,
-    PRIMARY KEY (id, rent),
+    g GEOMETRY AS (ST_GeometryFromText(CONCAT('POINT(', latitude, ' ', longitude, ')'))) STORED NOT NULL,
+    SPATIAL INDEX (g),
+    PRIMARY KEY (id),
     -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L357-L370
     -- 複数index効かせられないMySQLでは種類ごとの同値(=)検索で引っ掛けるのがORDER BYも効かせられる余地があってよい
     -- ORDER BY popularity DESC, id ASC LIMIT #{per_page} OFFSET #{per_page * page} があるので
@@ -45,13 +47,13 @@ CREATE TABLE isuumo.estate
     -- memo: https://qiita.com/qyen/items/bc4a7be812253c2be9f9
     INDEX idx_latitude_longitude (latitude, longitude, popularity DESC, id ASC),
     INDEX idx_longitude_latitude (longitude, latitude, popularity DESC, id ASC)
-)
-PARTITION BY RANGE(rent)  (
-    PARTITION rent_0 VALUES LESS THAN (50000),
-    PARTITION rent_1 VALUES LESS THAN (100000),
-    PARTITION rent_2 VALUES LESS THAN (150000),
-    PARTITION rent_3 VALUES LESS THAN MAXVALUE
 );
+#PARTITION BY RANGE(rent)  (
+#    PARTITION rent_0 VALUES LESS THAN (50000),
+#    PARTITION rent_1 VALUES LESS THAN (100000),
+#    PARTITION rent_2 VALUES LESS THAN (150000),
+#    PARTITION rent_3 VALUES LESS THAN MAXVALUE
+#);
 
 CREATE TABLE isuumo.chair
 (
@@ -77,15 +79,14 @@ CREATE TABLE isuumo.chair
 
     -- https://github.com/soudai/isucon10-qualify/blob/1be06d2540eb94244596e9a7b541f7c4caf4c14f/webapp/ruby/app.rb#L175-L183
     --
-    INDEX idx_color_kind (popularity DESC, id ASC, color, kind),
-    INDEX idx_kind_color (popularity DESC, id ASC, kind, color),
-    INDEX idx_height_width (popularity DESC, id ASC, height, width),
-    INDEX idx_width_height (popularity DESC, id ASC, width, height)
+    INDEX idx_color_kind (color, kind),
+    INDEX idx_kind_color (kind, color),
+    INDEX idx_height_width (height, width),
+    INDEX idx_width_height (width, height),
     --
     -- INDEX idx_color_popularity (color, popularity DESC),
-    -- INDEX idx_kind_popularity (kind, popularity DESC)
-	
-    -- INDEX idx_popularity_id (popularity DESC, id ASC)
+    -- INDEX idx_kind_popularity (kind, popularity DESC)	
+    INDEX idx_popularity_id (popularity DESC, id ASC)
     -- 常に他の検索条件との複合で必要なので単体では不要
     -- INDEX idx_popularity (popularity),
 
